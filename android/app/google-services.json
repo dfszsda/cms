@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "906061960215",
+    "project_id": "cmsy-cb0c5",
+    "storage_bucket": "cmsy-cb0c5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:906061960215:android:01b34be5aa915ab3cb3852",
+        "android_client_info": {
+          "package_name": "com.example.cms"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCG2wyHZrGQELklQTDeBhd2s-Yn-xyo9Uc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

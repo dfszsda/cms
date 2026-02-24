@@ -1,0 +1,13 @@
+lib/
+├── main.dart
+├── models/
+│   └── user_model.dart
+├── services/
+│   └── auth_service.dart
+├── screens/
+│   ├── login_screen.dart
+│   ├── signup_screen.dart
+│   ├── change_password_screen.dart
+│   ├── profile_screen.dart
+│   ├── student_home_screen.dart
+│   └── teacher_home_screen.dart
