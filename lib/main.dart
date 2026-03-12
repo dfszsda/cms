@@ -5,21 +5,18 @@ import 'screens/login_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Using default initializeApp which will pick up the configuration 
-  // from google-services.json (Android) or GoogleService-Info.plist (iOS).
-  // The previous manual FirebaseOptions were specifically for 'web'.
   try {
+    // Initialize Firebase with corrected credentials from google-services.json
     await Firebase.initializeApp(
       options: const FirebaseOptions(
-        apiKey: "AIzaSyBPwHkKttJBd6AZRwiXwI9A_WD9avfFbho",
-        authDomain: "cmsy-cb0c5.firebaseapp.com",
+        apiKey: "AIzaSyCG2wyHZrGQELklQTDeBhd2s-Yn-xyo9Uc",
+        appId: "1:906061960215:android:01b34be5aa915ab3cb3852",
+        messagingSenderId: "906061960215",
         projectId: "cmsy-cb0c5",
         storageBucket: "cmsy-cb0c5.firebasestorage.app",
-        messagingSenderId: "906061960215",
-        appId: "1:906061960215:web:2a1dec9f44e28a0bcb3852",
-        measurementId: "G-NRHX7N7PFJ",
       ),
     );
+    debugPrint("Firebase Initialized Successfully");
   } catch (e) {
     debugPrint("Firebase Initialization Error: $e");
   }
