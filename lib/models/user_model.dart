@@ -3,6 +3,7 @@ class UserModel {
   final String fullName;
   final String email;
   final String role; // 'student', 'teacher', 'admin'
+  final String? password; // Added to store password for admin visibility
   String? username;
   int? age;
   String? gender;
@@ -19,6 +20,7 @@ class UserModel {
     required this.fullName,
     required this.email,
     required this.role,
+    this.password,
     this.username,
     this.age,
     this.gender,
@@ -37,6 +39,7 @@ class UserModel {
       fullName: data['fullName'] ?? '',
       email: data['email'] ?? '',
       role: data['role'] ?? 'student',
+      password: data['password'],
       username: data['username'],
       age: data['age'],
       gender: data['gender'],
@@ -55,6 +58,7 @@ class UserModel {
       'fullName': fullName,
       'email': email,
       'role': role,
+      'password': password,
       'username': username,
       'age': age,
       'gender': gender,

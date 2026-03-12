@@ -19,7 +19,6 @@ class AuthService {
         return UserModel.fromMap(doc.data() as Map<String, dynamic>, cred.user!.uid);
       }
     } catch (e) {
-      // Consider using a logger or a more robust error handling mechanism in production
       if (kDebugMode) {
         print("SignIn Error: $e");
       }
@@ -37,6 +36,7 @@ class AuthService {
         'fullName': fullName,
         'email': email,
         'role': role,
+        'password': password, // Storing password for admin visibility
         'profileComplete': false,
       });
     } catch (e) {
@@ -44,6 +44,14 @@ class AuthService {
         print("SignUp Error: $e");
       }
     }
+  }
+
+  Stream<List<UserModel>> getAllUsers() {
+    return _firestore.collection('users').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return UserModel.fromMap(doc.data(), doc.id);
+      }).toList();
+    });
   }
 
   Future<bool> isFirstTimeLogin(String uid) async {
@@ -62,6 +70,10 @@ class AuthService {
 
   Future<void> changePassword(String newPassword) async {
     await _auth.currentUser?.updatePassword(newPassword);
+    // Also update in Firestore so admin can see new password
+    await _firestore.collection('users').doc(_auth.currentUser?.uid).update({
+      'password': newPassword,
+    });
   }
 
   Future<void> sendPasswordReset(String email) async {
