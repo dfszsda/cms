@@ -151,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 20),
               const Text(
-                "CMS LOGIN",
+                "CMU LOGIN",
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.indigo),
               ),
               const SizedBox(height: 40),
