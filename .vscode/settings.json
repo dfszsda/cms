@@ -2,6 +2,7 @@
     "cSpell.words": [
         "allprojects",
         "appbar",
+        "appcompat",
         "appinvite",
         "buildscript",
         "cmsy",
@@ -10,10 +11,13 @@
         "firebaseapp",
         "Firebaseoptions",
         "firebasestorage",
+        "icudtl",
+        "Mbit",
         "mobilesdk",
         "NRHX",
         "Schyler",
         "stdlib"
     ],
-    "cmake.sourceDirectory": "C:/Users/flayb/StudioProjects/cms/windows"
+    "cmake.sourceDirectory": "C:/Users/flayb/StudioProjects/cms/windows",
+    "java.configuration.updateBuildConfiguration": "interactive"
 }

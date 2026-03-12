@@ -4,6 +4,7 @@ import 'signup_screen.dart';
 import 'change_password_screen.dart';
 import 'student_home_screen.dart';
 import 'teacher_home_screen.dart';
+import 'admin_home_screen.dart';
 import 'profile_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -21,14 +22,36 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   Future<void> _login() async {
+    final email = emailCtrl.text.trim();
+    final password = passCtrl.text;
+
+    // Hardcoded Admin Login check as requested
+    if (email == "gohilhari23@gmail.com" && password == "Mbit@123") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
-    final user = await _auth.signIn(emailCtrl.text, passCtrl.text);
+    final user = await _auth.signIn(email, password);
     setState(() => _isLoading = false);
 
     if (user == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Invalid credentials")),
+        );
+      }
+      return;
+    }
+
+    if (user.role == 'admin') {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
         );
       }
       return;
@@ -76,12 +99,22 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const CircleAvatar(radius: 50, child: Icon(Icons.school, size: 60)),
+              const CircleAvatar(
+                radius: 50,
+                backgroundColor: Colors.indigo,
+                child: Icon(Icons.school, size: 60, color: Colors.white),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                "CMS LOGIN",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.indigo),
+              ),
               const SizedBox(height: 40),
               TextField(
                 controller: emailCtrl,
                 decoration: const InputDecoration(
                   labelText: 'Email or Username',
+                  prefixIcon: Icon(Icons.email),
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -91,6 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: !_showPass,
                 decoration: InputDecoration(
                   labelText: 'Password',
+                  prefixIcon: Icon(Icons.lock),
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: Icon(_showPass ? Icons.visibility : Icons.visibility_off),
@@ -115,7 +149,11 @@ class _LoginScreenState extends State<LoginScreen> {
               else
                 ElevatedButton(
                   onPressed: _login,
-                  style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(50),
+                  ),
                   child: const Text("LOGIN", style: TextStyle(fontSize: 16)),
                 ),
               const SizedBox(height: 24),
