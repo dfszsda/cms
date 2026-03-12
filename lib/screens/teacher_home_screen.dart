@@ -73,7 +73,7 @@ class _HomeCard extends StatelessWidget {
     return Card(
       elevation: 6,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: Colors.white.withOpacity(0.95),
+      color: Colors.white.withValues(alpha: 0.95),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
