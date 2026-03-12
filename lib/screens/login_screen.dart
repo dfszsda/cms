@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _auth = AuthService();
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
+  final _reqEmailCtrl = TextEditingController(); // Controller for request dialog
   bool _showPass = false;
   bool _isLoading = false;
 
@@ -25,8 +26,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = emailCtrl.text.trim();
     final password = passCtrl.text;
 
-    // Hardcoded Admin Login check as requested
     if (email == "gohilhari23@gmail.com" && password == "Mbit@123") {
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
@@ -36,69 +37,113 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
     final user = await _auth.signIn(email, password);
+    
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (user == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Invalid credentials")),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Invalid credentials")),
+      );
       return;
     }
 
     if (user.role == 'admin') {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
-        );
-      }
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
+      );
       return;
     }
 
     final isFirst = await _auth.isFirstTimeLogin(user.uid);
+    if (!mounted) return;
+
     if (isFirst) {
       await _auth.markFirstLoginDone(user.uid);
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => ChangePasswordScreen(isFirstTime: true)),
-        );
-      }
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => ChangePasswordScreen(isFirstTime: true)),
+      );
     } else if (!user.profileComplete) {
-      if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => ProfileScreen(user: user)),
+      );
+    } else {
+      if (user.role == 'student') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => ProfileScreen(user: user)),
+          MaterialPageRoute(builder: (_) => const StudentHomeScreen()),
         );
-      }
-    } else {
-      if (mounted) {
-        if (user.role == 'student') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const StudentHomeScreen()),
-          );
-        } else if (user.role == 'teacher') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const TeacherHomeScreen()),
-          );
-        }
+      } else if (user.role == 'teacher') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const TeacherHomeScreen()),
+        );
       }
     }
+  }
+
+  // Show a dialog to request password/email change from Admin
+  void _showRequestDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Request Admin Help"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Enter your registered email to request a password reset link from Admin."),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _reqEmailCtrl,
+              decoration: const InputDecoration(
+                labelText: "Your Email",
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              if (_reqEmailCtrl.text.isEmpty) return;
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(context);
+              
+              try {
+                await _auth.sendLoginRequest(_reqEmailCtrl.text.trim(), 'password');
+                if (!mounted) return;
+                
+                navigator.pop();
+                scaffoldMessenger.showSnackBar(
+                  const SnackBar(content: Text("Request sent to Admin successfully!")),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                scaffoldMessenger.showSnackBar(SnackBar(content: Text("Error: $e")));
+              }
+            },
+            child: const Text("Send Request"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              const SizedBox(height: 50),
               const CircleAvatar(
                 radius: 50,
                 backgroundColor: Colors.indigo,
@@ -136,11 +181,8 @@ class _LoginScreenState extends State<LoginScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
-                  ),
-                  child: const Text("Forgot Password?"),
+                  onPressed: _showRequestDialog, // Open Request Dialog
+                  child: const Text("Forgot Password? / Request Help"),
                 ),
               ),
               const SizedBox(height: 16),

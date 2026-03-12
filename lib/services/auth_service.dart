@@ -8,6 +8,7 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Sign In
   Future<UserModel?> signIn(String email, String password) async {
     try {
       UserCredential cred = await _auth.signInWithEmailAndPassword(
@@ -19,13 +20,12 @@ class AuthService {
         return UserModel.fromMap(doc.data() as Map<String, dynamic>, cred.user!.uid);
       }
     } catch (e) {
-      if (kDebugMode) {
-        print("SignIn Error: $e");
-      }
+      if (kDebugMode) print("SignIn Error: $e");
     }
     return null;
   }
 
+  // Sign Up
   Future<void> signUp(String fullName, String email, String password, String role) async {
     try {
       UserCredential cred = await _auth.createUserWithEmailAndPassword(
@@ -36,22 +36,74 @@ class AuthService {
         'fullName': fullName,
         'email': email,
         'role': role,
-        'password': password, // Storing password for admin visibility
+        'password': password,
         'profileComplete': false,
       });
     } catch (e) {
-      if (kDebugMode) {
-        print("SignUp Error: $e");
-      }
+      if (kDebugMode) print("SignUp Error: $e");
     }
   }
 
+  // Change Password
+  Future<void> changePassword(String newPassword) async {
+    try {
+      await _auth.currentUser?.updatePassword(newPassword);
+      // Also update in Firestore so admin/user can see it (optional, but keep for consistency)
+      await _firestore.collection('users').doc(_auth.currentUser?.uid).update({
+        'password': newPassword,
+      });
+    } catch (e) {
+      if (kDebugMode) print("Change Password Error: $e");
+      rethrow;
+    }
+  }
+
+  // Get All Users
   Stream<List<UserModel>> getAllUsers() {
     return _firestore.collection('users').snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
         return UserModel.fromMap(doc.data(), doc.id);
       }).toList();
     });
+  }
+
+  // Send Login Request from Login Screen
+  Future<void> sendLoginRequest(String email, String type) async {
+    var userQuery = await _firestore.collection('users').where('email', isEqualTo: email).get();
+    String fullName = "Unknown User";
+    if (userQuery.docs.isNotEmpty) {
+      fullName = userQuery.docs.first.get('fullName');
+    }
+
+    await _firestore.collection('requests').add({
+      'email': email,
+      'fullName': fullName,
+      'requestType': type,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Admin gets pending requests
+  Stream<QuerySnapshot> getPendingRequests() {
+    return _firestore
+        .collection('requests')
+        .where('status', isEqualTo: 'pending')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  // Admin approves and sends reset email
+  Future<void> approveRequest(String requestId, String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+      await _firestore.collection('requests').doc(requestId).update({
+        'status': 'completed',
+      });
+    } catch (e) {
+      if (kDebugMode) print("Approve Error: $e");
+      rethrow;
+    }
   }
 
   Future<bool> isFirstTimeLogin(String uid) async {
@@ -66,18 +118,6 @@ class AuthService {
 
   Future<void> updateProfile(UserModel user) async {
     await _firestore.collection('users').doc(user.uid).update(user.toMap());
-  }
-
-  Future<void> changePassword(String newPassword) async {
-    await _auth.currentUser?.updatePassword(newPassword);
-    // Also update in Firestore so admin can see new password
-    await _firestore.collection('users').doc(_auth.currentUser?.uid).update({
-      'password': newPassword,
-    });
-  }
-
-  Future<void> sendPasswordReset(String email) async {
-    await _auth.sendPasswordResetEmail(email: email.trim());
   }
 
   Future<void> signOut() => _auth.signOut();

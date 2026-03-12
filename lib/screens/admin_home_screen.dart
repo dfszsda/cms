@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
@@ -18,8 +19,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   bool _isLoading = false;
 
   Future<void> _createUser() async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     if (_nameCtrl.text.isEmpty || _emailCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text("Please fill all fields")),
       );
       return;
@@ -34,25 +36,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         _selectedRole,
       );
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("$_selectedRole created successfully with password Admin@123")),
-        );
-        _nameCtrl.clear();
-        _emailCtrl.clear();
-        await _auth.signOut();
-        // ignore: use_build_context_synchronously
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
-      }
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text("$_selectedRole created successfully")),
+      );
+      _nameCtrl.clear();
+      _emailCtrl.clear();
+      
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
-        );
-      }
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -61,7 +56,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3, // Add, Users, Requests
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Admin Dashboard"),
@@ -71,14 +66,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             IconButton(
               icon: const Icon(Icons.logout),
               onPressed: () async {
+                final navigator = Navigator.of(context);
                 await _auth.signOut();
-                if (mounted) {
-                  // ignore: use_build_context_synchronously
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    (route) => false,
-                  );
-                }
+                if (!mounted) return;
+                
+                navigator.pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
               },
             )
           ],
@@ -87,8 +82,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.white,
             tabs: [
-              Tab(icon: Icon(Icons.person_add), text: "Add User"),
-              Tab(icon: Icon(Icons.list), text: "View Users"),
+              Tab(icon: Icon(Icons.person_add), text: "Add"),
+              Tab(icon: Icon(Icons.list), text: "Users"),
+              Tab(icon: Icon(Icons.notifications), text: "Requests"),
             ],
           ),
         ),
@@ -96,6 +92,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           children: [
             _buildAddUserTab(),
             _buildViewUsersTab(),
+            _buildRequestsTab(),
           ],
         ),
       ),
@@ -125,36 +122,22 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ),
           ),
           const SizedBox(height: 30),
-          const Text(
-            "Register New User",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          const Text("Register New User", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           TextField(
             controller: _nameCtrl,
-            decoration: const InputDecoration(
-              labelText: "Full Name",
-              prefixIcon: Icon(Icons.person),
-              border: OutlineInputBorder(),
-            ),
+            decoration: const InputDecoration(labelText: "Full Name", prefixIcon: Icon(Icons.person), border: OutlineInputBorder()),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _emailCtrl,
-            decoration: const InputDecoration(
-              labelText: "Email Address",
-              prefixIcon: Icon(Icons.email),
-              border: OutlineInputBorder(),
-            ),
+            decoration: const InputDecoration(labelText: "Email Address", prefixIcon: Icon(Icons.email), border: OutlineInputBorder()),
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
+            // ignore: deprecated_member_use
             value: _selectedRole,
-            decoration: const InputDecoration(
-              labelText: "User Role",
-              prefixIcon: Icon(Icons.category),
-              border: OutlineInputBorder(),
-            ),
+            decoration: const InputDecoration(labelText: "User Role", prefixIcon: Icon(Icons.category), border: OutlineInputBorder()),
             items: const [
               DropdownMenuItem(value: 'student', child: Text("Student")),
               DropdownMenuItem(value: 'teacher', child: Text("Teacher")),
@@ -173,30 +156,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 backgroundColor: Colors.indigo,
                 foregroundColor: Colors.white,
                 minimumSize: const Size.fromHeight(55),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text("CREATE ACCOUNT", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.indigo),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    "Note: Default password for new users will be Admin@123",
-                    style: TextStyle(fontSize: 14, color: Colors.black87),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -206,40 +168,65 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     return StreamBuilder<List<UserModel>>(
       stream: _auth.getAllUsers(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text("Error: ${snapshot.error}"));
-        }
-        final users = snapshot.data ?? [];
-        if (users.isEmpty) {
-          return const Center(child: Text("No users found."));
-        }
-
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final users = snapshot.data!.where((u) => u.role != 'admin').toList();
         return ListView.builder(
           itemCount: users.length,
           itemBuilder: (context, index) {
             final user = users[index];
-            if (user.role == 'admin') return const SizedBox.shrink(); // Hide admin themselves
-            
             return Card(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: user.role == 'teacher' ? Colors.orange : Colors.green,
-                  child: Text(user.role[0].toUpperCase(), style: const TextStyle(color: Colors.white)),
+                leading: CircleAvatar(child: Text(user.role[0].toUpperCase())),
+                title: Text(user.fullName),
+                subtitle: Text("Email: ${user.email}\nRole: ${user.role}"),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildRequestsTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _auth.getPendingRequests(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text("No pending requests."));
+        }
+
+        return ListView.builder(
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            var doc = snapshot.data!.docs[index];
+            var data = doc.data() as Map<String, dynamic>;
+
+            return Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: ListTile(
+                title: Text(data['fullName'] ?? 'User'),
+                subtitle: Text("Type: ${data['requestType'].toString().toUpperCase()}\nEmail: ${data['email']}"),
+                trailing: ElevatedButton(
+                  onPressed: () async {
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    try {
+                      await _auth.approveRequest(doc.id, data['email']);
+                      if (!mounted) return;
+                      scaffoldMessenger.showSnackBar(
+                        const SnackBar(content: Text("Reset Link Sent to User Email!")),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      scaffoldMessenger.showSnackBar(
+                        SnackBar(content: Text("Error: $e")),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                  child: const Text("Approve"),
                 ),
-                title: Text(user.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Email: ${user.email}"),
-                    Text("Password: ${user.password ?? 'N/A'}", style: const TextStyle(color: Colors.indigo, fontWeight: FontWeight.w500)),
-                    Text("Role: ${user.role}"),
-                  ],
-                ),
-                isThreeLine: true,
               ),
             );
           },
