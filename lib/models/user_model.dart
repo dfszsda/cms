@@ -13,6 +13,7 @@ class UserModel {
   String? address;
   String? phone;
   String? furtherPhone;
+  String? profilePic;
   bool profileComplete;
 
   UserModel({
@@ -30,6 +31,7 @@ class UserModel {
     this.address,
     this.phone,
     this.furtherPhone,
+    this.profilePic,
     this.profileComplete = false,
   });
 
@@ -49,6 +51,7 @@ class UserModel {
       address: data['address'],
       phone: data['phone'],
       furtherPhone: data['furtherPhone'],
+      profilePic: data['profilePic'],
       profileComplete: data['profileComplete'] ?? false,
     );
   }
@@ -68,6 +71,7 @@ class UserModel {
       'address': address,
       'phone': phone,
       'furtherPhone': furtherPhone,
+      'profilePic': profilePic,
       'profileComplete': profileComplete,
     };
   }
