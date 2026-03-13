@@ -15,48 +15,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   final _auth = AuthService();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
+  
   String _selectedRole = 'student';
   bool _isLoading = false;
-
-  Future<void> _createUser() async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    if (_nameCtrl.text.isEmpty || _emailCtrl.text.isEmpty) {
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text("Please fill all fields")),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-    try {
-      await _auth.signUp(
-        _nameCtrl.text.trim(),
-        _emailCtrl.text.trim(),
-        "Admin@123",
-        _selectedRole,
-      );
-      
-      if (!mounted) return;
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text("$_selectedRole created successfully")),
-      );
-      _nameCtrl.clear();
-      _emailCtrl.clear();
-      
-    } catch (e) {
-      if (!mounted) return;
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3, // Add, Users, Requests
+      length: 4, 
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Admin Dashboard"),
@@ -78,6 +44,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             )
           ],
           bottom: const TabBar(
+            isScrollable: true,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.white,
@@ -85,6 +52,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               Tab(icon: Icon(Icons.person_add), text: "Add"),
               Tab(icon: Icon(Icons.list), text: "Users"),
               Tab(icon: Icon(Icons.notifications), text: "Requests"),
+              Tab(icon: Icon(Icons.settings), text: "Settings"),
             ],
           ),
         ),
@@ -93,6 +61,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             _buildAddUserTab(),
             _buildViewUsersTab(),
             _buildRequestsTab(),
+            _buildSettingsTab(),
           ],
         ),
       ),
@@ -135,7 +104,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            // ignore: deprecated_member_use
             value: _selectedRole,
             decoration: const InputDecoration(labelText: "User Role", prefixIcon: Icon(Icons.category), border: OutlineInputBorder()),
             items: const [
@@ -162,6 +130,41 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _createUser() async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    if (_nameCtrl.text.isEmpty || _emailCtrl.text.isEmpty) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text("Please fill all fields")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await _auth.signUp(
+        _nameCtrl.text.trim(),
+        _emailCtrl.text.trim(),
+        "Admin@123",
+        _selectedRole,
+      );
+      
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text("$_selectedRole created successfully")),
+      );
+      _nameCtrl.clear();
+      _emailCtrl.clear();
+      
+    } catch (e) {
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Widget _buildViewUsersTab() {
@@ -232,6 +235,27 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildSettingsTab() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.account_balance_wallet_outlined, size: 80, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          const Text(
+            "Account Details Settings",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "Coming Soon...",
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ],
+      ),
     );
   }
 }

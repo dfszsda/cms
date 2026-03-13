@@ -69,10 +69,10 @@ class AuthService {
 
   // Send Login Request from Login Screen
   Future<void> sendLoginRequest(String email, String type) async {
-    var userQuery = await _firestore.collection('users').where('email', isEqualTo: email).get();
+    var userQuery = await _firestore.collection('users').where('email', isEqualTo: email).limit(1).get();
     String fullName = "Unknown User";
     if (userQuery.docs.isNotEmpty) {
-      fullName = userQuery.docs.first.get('fullName');
+      fullName = userQuery.docs.first.get('fullName') ?? "Unknown User";
     }
 
     await _firestore.collection('requests').add({

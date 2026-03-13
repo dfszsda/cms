@@ -10,4 +10,15 @@ lib/
 │   ├── change_password_screen.dart
 │   ├── profile_screen.dart
 │   ├── student_home_screen.dart
-│   └── teacher_home_screen.dart
+│   ├── teacher_home_screen.dart
+│   ├── teachers_list_screen.dart
+│   ├── students_list_screen.dart
+│   ├── students_section_screen.dart
+│   ├── canteen_screen.dart
+│   ├── college_info_screen.dart
+│   ├── cart_screen.dart
+│   ├──
+│   ├── admin_home_screen.dart
+│   └── coming_soon_screen.dart
+├── raw/
+│   └── logo.png

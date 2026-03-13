@@ -18,7 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _auth = AuthService();
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
-  final _reqEmailCtrl = TextEditingController(); // Controller for request dialog
+  final _reqEmailCtrl = TextEditingController();
   bool _showPass = false;
   bool _isLoading = false;
 
@@ -43,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Invalid credentials")),
+        const SnackBar(content: Text("Invalid credentials"), behavior: SnackBarBehavior.floating),
       );
       return;
     }
@@ -86,22 +86,22 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // Show a dialog to request password/email change from Admin
   void _showRequestDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text("Request Admin Help"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("Enter your registered email to request a password reset link from Admin."),
+            const Text("Enter your registered email to request a password reset link."),
             const SizedBox(height: 16),
             TextField(
               controller: _reqEmailCtrl,
               decoration: const InputDecoration(
                 labelText: "Your Email",
-                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.alternate_email),
               ),
             ),
           ],
@@ -120,11 +120,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 
                 navigator.pop();
                 scaffoldMessenger.showSnackBar(
-                  const SnackBar(content: Text("Request sent to Admin successfully!")),
+                  const SnackBar(content: Text("Request sent to Admin successfully!"), behavior: SnackBarBehavior.floating),
                 );
               } catch (e) {
                 if (!mounted) return;
-                scaffoldMessenger.showSnackBar(SnackBar(content: Text("Error: $e")));
+                scaffoldMessenger.showSnackBar(SnackBar(content: Text("Error: $e"), behavior: SnackBarBehavior.floating));
               }
             },
             child: const Text("Send Request"),
@@ -137,78 +137,94 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 30),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 50),
-              const CircleAvatar(
-                radius: 50,
-                backgroundColor: Colors.indigo,
-                child: Icon(Icons.school, size: 60, color: Colors.white),
+              const SizedBox(height: 60),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.school_rounded, size: 64, color: Theme.of(context).colorScheme.primary),
+                ),
               ),
-              const SizedBox(height: 20),
-              const Text(
-                "CMS LOGIN",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.indigo),
+              const SizedBox(height: 32),
+              const Center(
+                child: Text(
+                  "Welcome Back",
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                ),
               ),
-              const SizedBox(height: 40),
+              const Center(
+                child: Text(
+                  "Login to your college account",
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+              ),
+              const SizedBox(height: 48),
+              const Text("Email Address", style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
               TextField(
                 controller: emailCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Email or Username',
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
+                  hintText: 'name@college.edu',
+                  prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+              const Text("Password", style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
               TextField(
                 controller: passCtrl,
                 obscureText: !_showPass,
                 decoration: InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock),
-                  border: const OutlineInputBorder(),
+                  hintText: 'Enter your password',
+                  prefixIcon: Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
-                    icon: Icon(_showPass ? Icons.visibility : Icons.visibility_off),
+                    icon: Icon(_showPass ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                     onPressed: () => setState(() => _showPass = !_showPass),
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: _showRequestDialog, // Open Request Dialog
-                  child: const Text("Forgot Password? / Request Help"),
+                  onPressed: _showRequestDialog,
+                  child: const Text("Forgot Password?"),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 32),
               if (_isLoading)
-                const CircularProgressIndicator()
+                const Center(child: CircularProgressIndicator())
               else
-                ElevatedButton(
-                  onPressed: _login,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigo,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(50),
+                Hero(
+                  tag: 'login_btn',
+                  child: ElevatedButton(
+                    onPressed: _login,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(56),
+                    ),
+                    child: const Text("Login", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
-                  child: const Text("LOGIN", style: TextStyle(fontSize: 16)),
                 ),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account? "),
+                  const Text("Don't have an account? ", style: TextStyle(color: Colors.grey)),
                   TextButton(
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const SignupScreen()),
                     ),
-                    child: const Text("Sign Up"),
+                    child: const Text("Sign Up", style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

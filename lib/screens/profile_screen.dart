@@ -23,6 +23,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController addressCtrl;
   late TextEditingController phoneCtrl;
   late TextEditingController extraPhoneCtrl;
+  late TextEditingController profilePicCtrl;
 
   @override
   void initState() {
@@ -35,6 +36,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     addressCtrl = TextEditingController(text: widget.user.address ?? '');
     phoneCtrl = TextEditingController(text: widget.user.phone ?? '');
     extraPhoneCtrl = TextEditingController(text: widget.user.furtherPhone ?? '');
+    profilePicCtrl = TextEditingController(text: widget.user.profilePic ?? '');
   }
 
   Future<void> _save() async {
@@ -47,6 +49,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ..address = addressCtrl.text.trim()
       ..phone = phoneCtrl.text.trim()
       ..furtherPhone = extraPhoneCtrl.text.trim()
+      ..profilePic = profilePicCtrl.text.trim()
       ..profileComplete = true;
 
     await _auth.updateProfile(widget.user);
@@ -85,6 +88,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               decoration: const InputDecoration(labelText: "Email"),
               enabled: false,
             ),
+            const SizedBox(height: 16),
+            TextField(controller: profilePicCtrl, decoration: const InputDecoration(labelText: "Profile Photo URL")),
             const SizedBox(height: 16),
             TextField(controller: ageCtrl, decoration: const InputDecoration(labelText: "Age"), keyboardType: TextInputType.number),
             const SizedBox(height: 16),
