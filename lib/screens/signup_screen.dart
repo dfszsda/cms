@@ -111,6 +111,7 @@ class _SignupScreenState extends State<SignupScreen> {
             const Text("Register as", style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
+              // ignore: deprecated_member_use
               value: selectedRole,
               items: const [
                 DropdownMenuItem(value: 'student', child: Text("Student")),

@@ -25,20 +25,53 @@ class AuthService {
     return null;
   }
 
-  // Sign Up
+  // Sign Up with Batch (For Admin)
+  Future<void> signUpWithBatch(String fullName, String email, String password, String role, String? batchCode) async {
+    try {
+      UserCredential cred = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      Map<String, dynamic> userData = {
+        'fullName': fullName,
+        'email': email,
+        'role': role,
+        'password': password,
+        'profileComplete': false,
+      };
+
+      if (role == 'student') {
+        userData['semester'] = 1;
+        userData['batch'] = batchCode;
+      }
+
+      await _firestore.collection('users').doc(cred.user!.uid).set(userData);
+    } catch (e) {
+      if (kDebugMode) print("SignUp Error: $e");
+      rethrow;
+    }
+  }
+
+  // Original Sign Up
   Future<void> signUp(String fullName, String email, String password, String role) async {
     try {
       UserCredential cred = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
-      await _firestore.collection('users').doc(cred.user!.uid).set({
+      Map<String, dynamic> userData = {
         'fullName': fullName,
         'email': email,
         'role': role,
         'password': password,
         'profileComplete': false,
-      });
+      };
+
+      if (role == 'student') {
+        userData['semester'] = 1;
+      }
+
+      await _firestore.collection('users').doc(cred.user!.uid).set(userData);
     } catch (e) {
       if (kDebugMode) print("SignUp Error: $e");
     }
@@ -48,7 +81,6 @@ class AuthService {
   Future<void> changePassword(String newPassword) async {
     try {
       await _auth.currentUser?.updatePassword(newPassword);
-      // Also update in Firestore so admin/user can see it (optional, but keep for consistency)
       await _firestore.collection('users').doc(_auth.currentUser?.uid).update({
         'password': newPassword,
       });

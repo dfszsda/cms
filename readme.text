@@ -1,8 +1,12 @@
 lib/
 ├── main.dart
 ├── models/
+│   ├── canteen_model.dart
+│   ├── todo_model.dart
 │   └── user_model.dart
 ├── services/
+│   ├── canteen_service.dart
+│   ├── drive_service.dart
 │   └── auth_service.dart
 ├── screens/
 │   ├── login_screen.dart
@@ -17,8 +21,13 @@ lib/
 │   ├── canteen_screen.dart
 │   ├── college_info_screen.dart
 │   ├── cart_screen.dart
-│   ├──
+│   ├── checkout_screen.dart
+│   ├── library_screen.dart
 │   ├── admin_home_screen.dart
+│   ├── todo_works_screen.dart
+│   ├── group_projects_screen.dart
+│   ├── materials_screen.dart
+│   ├── profile_settings_screen.dart
 │   └── coming_soon_screen.dart
 ├── raw/
 │   └── logo.png

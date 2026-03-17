@@ -1,4 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../models/user_model.dart';
+import '../services/auth_service.dart';
+import 'login_screen.dart';
+import 'profile_screen.dart';
 import 'teachers_list_screen.dart';
 import 'students_section_screen.dart';
 import 'canteen_screen.dart';
@@ -13,12 +19,47 @@ class StudentHomeScreen extends StatefulWidget {
 }
 
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
+  final _auth = AuthService();
+  UserModel? _currentUser;
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Logic for welcome dialog can go here if needed
-    });
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        setState(() {
+          _currentUser = UserModel.fromMap(doc.data()!, user.uid);
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    await _auth.signOut();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
+  void _handleEditProfile() {
+    if (_currentUser != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ProfileScreen(user: _currentUser!)),
+      ).then((_) => _loadUserData());
+    }
   }
 
   @override
@@ -27,7 +68,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      body: CustomScrollView(
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator())
+        : CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 120.0,
@@ -52,9 +95,29 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
                 onPressed: () {},
               ),
-              IconButton(
+              PopupMenuButton<String>(
                 icon: const Icon(Icons.account_circle_outlined, color: Colors.white),
-                onPressed: () {},
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _handleEditProfile();
+                  } else if (value == 'logout') {
+                    _handleLogout();
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [Icon(Icons.edit_outlined, size: 20), SizedBox(width: 8), Text("Edit Profile")],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [Icon(Icons.logout, size: 20, color: Colors.red), SizedBox(width: 8), Text("Logout", style: TextStyle(color: Colors.red))],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -65,10 +128,21 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Hello, Student!",
+                    "Hello, ${_currentUser?.fullName.split(' ')[0] ?? 'Student'}!",
                     style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                   ),
-                  const Text("What would you like to do today?", style: TextStyle(color: Colors.grey)),
+                  const Text("Welcome to your academic dashboard", style: TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  
+                  // Semester & Batch Info Chips
+                  Row(
+                    children: [
+                      _buildInfoChip(theme, Icons.school, "Sem ${_currentUser?.semester ?? 'N/A'}"),
+                      const SizedBox(width: 12),
+                      _buildInfoChip(theme, Icons.qr_code, "Batch: ${_currentUser?.batch ?? 'N/A'}"),
+                    ],
+                  ),
+                  
                   const SizedBox(height: 24),
                   
                   // Announcements / Banner
@@ -116,16 +190,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               ),
               delegate: SliverChildListDelegate([
                 _ModernHomeCard(
+                  title: "Students Section",
+                  icon: Icons.group_rounded,
+                  color: Colors.orange,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentsSectionScreen())),
+                ),
+                _ModernHomeCard(
                   title: "Teachers",
                   icon: Icons.school_rounded,
                   color: Colors.blue,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TeachersListScreen())),
-                ),
-                _ModernHomeCard(
-                  title: "Students",
-                  icon: Icons.group_rounded,
-                  color: Colors.orange,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentsSectionScreen())),
                 ),
                 _ModernHomeCard(
                   title: "Canteen",
@@ -140,12 +214,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CollegeInfoScreen(role: 'student'))),
                 ),
                 _ModernHomeCard(
-                  title: "Events",
-                  icon: Icons.event_rounded,
-                  color: Colors.purple,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ComingSoonScreen(title: "Events"))),
-                ),
-                _ModernHomeCard(
                   title: "Library",
                   icon: Icons.local_library_rounded,
                   color: Colors.indigo,
@@ -155,6 +223,25 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 30)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(ThemeData theme, IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 13)),
         ],
       ),
     );
@@ -184,11 +271,7 @@ class _ModernHomeCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
         child: Column(
@@ -196,17 +279,11 @@ class _ModernHomeCard extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
               child: Icon(icon, color: color, size: 32),
             ),
             const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
       ),

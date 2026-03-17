@@ -135,7 +135,7 @@ class _CanteenScreenState extends State<CanteenScreen> {
                       children: [
                         CircleAvatar(
                           radius: 28,
-                          backgroundColor: isSelected ? cat['color'] : cat['color'].withOpacity(0.1),
+                          backgroundColor: isSelected ? cat['color'] : (cat['color'] as Color).withValues(alpha: 0.1),
                           child: Icon(cat['icon'], color: isSelected ? Colors.white : cat['color']),
                         ),
                         const SizedBox(height: 4),
