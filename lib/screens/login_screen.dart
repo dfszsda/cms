@@ -26,16 +26,31 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = emailCtrl.text.trim();
     final password = passCtrl.text;
 
-    if (email == "gohilhari23@gmail.com" && password == "Mbit@123") {
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter email and password")),
       );
       return;
     }
 
     setState(() => _isLoading = true);
+
+    // --- એડમિન ડાયરેક્ટ એક્સેસ લોજિક ---
+    if (email == "gohilhari23@gmail.com" && password == "Mbit@123") {
+      final user = await _auth.signIn(email, password);
+      setState(() => _isLoading = false);
+      
+      if (user != null && user.role == 'admin') {
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
+        );
+        return;
+      }
+    }
+    // --------------------------------
+
     final user = await _auth.signIn(email, password);
     
     if (!mounted) return;
@@ -43,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Invalid credentials"), behavior: SnackBarBehavior.floating),
+        const SnackBar(content: Text("Invalid credentials. Please check your email/password."), behavior: SnackBarBehavior.floating),
       );
       return;
     }
@@ -53,35 +68,33 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
         MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
       );
-      return;
-    }
-
-    final isFirst = await _auth.isFirstTimeLogin(user.uid);
-    if (!mounted) return;
-
-    if (isFirst) {
-      await _auth.markFirstLoginDone(user.uid);
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => ChangePasswordScreen(isFirstTime: true)),
-      );
-    } else if (!user.profileComplete) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => ProfileScreen(user: user)),
-      );
     } else {
-      if (user.role == 'student') {
+      final isFirst = await _auth.isFirstTimeLogin(user.uid);
+      if (!mounted) return;
+
+      if (isFirst) {
+        await _auth.markFirstLoginDone(user.uid);
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const StudentHomeScreen()),
+          MaterialPageRoute(builder: (_) => ChangePasswordScreen(isFirstTime: true)),
         );
-      } else if (user.role == 'teacher') {
+      } else if (!user.profileComplete) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const TeacherHomeScreen()),
+          MaterialPageRoute(builder: (_) => ProfileScreen(user: user)),
         );
+      } else {
+        if (user.role == 'student') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const StudentHomeScreen()),
+          );
+        } else if (user.role == 'teacher') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const TeacherHomeScreen()),
+          );
+        }
       }
     }
   }
@@ -111,20 +124,16 @@ class _LoginScreenState extends State<LoginScreen> {
           ElevatedButton(
             onPressed: () async {
               if (_reqEmailCtrl.text.isEmpty) return;
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
-              final navigator = Navigator.of(context);
-              
               try {
                 await _auth.sendLoginRequest(_reqEmailCtrl.text.trim(), 'password');
                 if (!mounted) return;
-                
-                navigator.pop();
-                scaffoldMessenger.showSnackBar(
-                  const SnackBar(content: Text("Request sent to Admin successfully!"), behavior: SnackBarBehavior.floating),
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Request sent successfully!"), behavior: SnackBarBehavior.floating),
                 );
               } catch (e) {
                 if (!mounted) return;
-                scaffoldMessenger.showSnackBar(SnackBar(content: Text("Error: $e"), behavior: SnackBarBehavior.floating));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
               }
             },
             child: const Text("Send Request"),
@@ -156,27 +165,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              const Center(
-                child: Text(
-                  "Welcome Back",
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const Center(
-                child: Text(
-                  "Login to your college account",
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
-                ),
-              ),
+              const Center(child: Text("Welcome Back", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
+              const Center(child: Text("Login to your college account", style: TextStyle(color: Colors.grey, fontSize: 16))),
               const SizedBox(height: 48),
               const Text("Email Address", style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               TextField(
                 controller: emailCtrl,
-                decoration: const InputDecoration(
-                  hintText: 'name@college.edu',
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
+                decoration: const InputDecoration(hintText: 'name@college.edu', prefixIcon: Icon(Icons.email_outlined)),
               ),
               const SizedBox(height: 24),
               const Text("Password", style: TextStyle(fontWeight: FontWeight.w600)),
@@ -195,35 +191,22 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _showRequestDialog,
-                  child: const Text("Forgot Password?"),
-                ),
+                child: TextButton(onPressed: _showRequestDialog, child: const Text("Forgot Password?")),
               ),
               const SizedBox(height: 32),
-              if (_isLoading)
-                const Center(child: CircularProgressIndicator())
-              else
-                Hero(
-                  tag: 'login_btn',
-                  child: ElevatedButton(
-                    onPressed: _login,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(56),
-                    ),
-                    child: const Text("Login", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
-                ),
+              if (_isLoading) const Center(child: CircularProgressIndicator())
+              else ElevatedButton(
+                onPressed: _login,
+                style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+                child: const Text("Login", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text("Don't have an account? ", style: TextStyle(color: Colors.grey)),
                   TextButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SignupScreen()),
-                    ),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupScreen())),
                     child: const Text("Sign Up", style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],

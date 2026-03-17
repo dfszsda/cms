@@ -15,6 +15,8 @@ class UserModel {
   String? furtherPhone;
   String? profilePic;
   bool profileComplete;
+  int? semester; // New field for students
+  String? batch; // New field for batch (e.g., 2021-2025)
 
   UserModel({
     required this.uid,
@@ -33,6 +35,8 @@ class UserModel {
     this.furtherPhone,
     this.profilePic,
     this.profileComplete = false,
+    this.semester,
+    this.batch,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> data, String uid) {
@@ -53,6 +57,8 @@ class UserModel {
       furtherPhone: data['furtherPhone'],
       profilePic: data['profilePic'],
       profileComplete: data['profileComplete'] ?? false,
+      semester: data['semester'],
+      batch: data['batch'],
     );
   }
 
@@ -73,6 +79,8 @@ class UserModel {
       'furtherPhone': furtherPhone,
       'profilePic': profilePic,
       'profileComplete': profileComplete,
+      'semester': semester,
+      'batch': batch,
     };
   }
 }
