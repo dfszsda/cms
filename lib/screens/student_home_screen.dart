@@ -10,6 +10,7 @@ import 'students_section_screen.dart';
 import 'canteen_screen.dart';
 import 'college_info_screen.dart';
 import 'coming_soon_screen.dart';
+import 'attendance_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   const StudentHomeScreen({super.key});
@@ -145,32 +146,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   
                   const SizedBox(height: 24),
                   
-                  // Announcements / Banner
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.2)),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.campaign_rounded, color: theme.colorScheme.primary, size: 32),
-                        const SizedBox(width: 16),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("Exam Schedule Out!", style: TextStyle(fontWeight: FontWeight.bold)),
-                              Text("Check the latest updates in notifications.", style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
+                  // Attendance Summary Card (NEW)
+                  _buildAttendanceSummaryCard(theme),
+                  
+                  const SizedBox(height: 24),
+                  
                   Text(
                     "Quick Actions",
                     style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
@@ -189,6 +169,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 childAspectRatio: 1.1,
               ),
               delegate: SliverChildListDelegate([
+                _ModernHomeCard(
+                  title: "Attendance",
+                  icon: Icons.calendar_month_rounded,
+                  color: Colors.green,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(student: _currentUser))),
+                ),
                 _ModernHomeCard(
                   title: "Students Section",
                   icon: Icons.group_rounded,
@@ -213,18 +199,76 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   color: Colors.teal,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CollegeInfoScreen(role: 'student'))),
                 ),
-                _ModernHomeCard(
-                  title: "Library",
-                  icon: Icons.local_library_rounded,
-                  color: Colors.indigo,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ComingSoonScreen(title: "Library"))),
-                ),
               ]),
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 30)),
         ],
       ),
+    );
+  }
+
+  Widget _buildAttendanceSummaryCard(ThemeData theme) {
+    if (_currentUser == null) return const SizedBox();
+    
+    return StreamBuilder<QuerySnapshot>(
+      stream: _auth.getStudentAttendance(_currentUser!.uid, _currentUser!.semester ?? 1),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox();
+        
+        final docs = snapshot.data!.docs;
+        int totalDays = docs.length;
+        int presentDays = 0;
+        for (var doc in docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          final presentList = List<String>.from(data['presentStudents'] ?? []);
+          if (presentList.contains(_currentUser!.uid)) presentDays++;
+        }
+        
+        double percentage = totalDays == 0 ? 0 : (presentDays / totalDays) * 100;
+        
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: (percentage >= 75 ? Colors.green : Colors.red).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    "${percentage.toInt()}%",
+                    style: TextStyle(
+                      color: percentage >= 75 ? Colors.green : Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Attendance Record", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text("$presentDays/$totalDays days present", style: const TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey[400]),
+            ],
+          ),
+        );
+      },
     );
   }
 

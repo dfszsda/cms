@@ -35,74 +35,74 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    // --- એડમિન ડાયરેક્ટ એક્સેસ લોજિક ---
-    if (email == "gohilhari23@gmail.com" && password == "Mbit@123") {
+    try {
       final user = await _auth.signIn(email, password);
-      setState(() => _isLoading = false);
       
-      if (user != null && user.role == 'admin') {
-        if (!mounted) return;
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (user == null) {
+        throw Exception("User data not found.");
+      }
+
+      if (user.role == 'admin') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
         );
-        return;
-      }
-    }
-    // --------------------------------
-
-    final user = await _auth.signIn(email, password);
-    
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Invalid credentials. Please check your email/password."), behavior: SnackBarBehavior.floating),
-      );
-      return;
-    }
-
-    if (user.role == 'admin') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
-      );
-    } else {
-      final isFirst = await _auth.isFirstTimeLogin(user.uid);
-      if (!mounted) return;
-
-      if (isFirst) {
-        await _auth.markFirstLoginDone(user.uid);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => ChangePasswordScreen(isFirstTime: true)),
-        );
-      } else if (!user.profileComplete) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => ProfileScreen(user: user)),
-        );
       } else {
-        if (user.role == 'student') {
+        final isFirst = await _auth.isFirstTimeLogin(user.uid);
+        if (!mounted) return;
+
+        if (isFirst) {
+          await _auth.markFirstLoginDone(user.uid);
+          if (!mounted) return;
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const StudentHomeScreen()),
+            MaterialPageRoute(builder: (_) => ChangePasswordScreen(isFirstTime: true)),
           );
-        } else if (user.role == 'teacher') {
+        } else if (!user.profileComplete) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const TeacherHomeScreen()),
+            MaterialPageRoute(builder: (_) => ProfileScreen(user: user)),
           );
+        } else {
+          if (user.role == 'student') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const StudentHomeScreen()),
+            );
+          } else if (user.role == 'teacher') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const TeacherHomeScreen()),
+            );
+          }
         }
       }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      
+      String errorMsg = e.toString();
+      if (errorMsg.startsWith("Exception: ")) {
+        errorMsg = errorMsg.replaceFirst("Exception: ", "");
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
   void _showRequestDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text("Request Admin Help"),
         content: Column(
@@ -120,14 +120,18 @@ class _LoginScreenState extends State<LoginScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () async {
-              if (_reqEmailCtrl.text.isEmpty) return;
+              final email = _reqEmailCtrl.text.trim();
+              if (email.isEmpty) return;
               try {
-                await _auth.sendLoginRequest(_reqEmailCtrl.text.trim(), 'password');
+                await _auth.sendLoginRequest(email, 'password');
+                
+                if (!dialogCtx.mounted) return;
+                Navigator.pop(dialogCtx);
+                
                 if (!mounted) return;
-                Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Request sent successfully!"), behavior: SnackBarBehavior.floating),
                 );
@@ -182,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: !_showPass,
                 decoration: InputDecoration(
                   hintText: 'Enter your password',
-                  prefixIcon: Icon(Icons.lock_outline),
+                  prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(_showPass ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                     onPressed: () => setState(() => _showPass = !_showPass),

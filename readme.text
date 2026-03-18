@@ -3,6 +3,7 @@ lib/
 ├── models/
 │   ├── canteen_model.dart
 │   ├── todo_model.dart
+│   ├── library_model.dart
 │   └── user_model.dart
 ├── services/
 │   ├── canteen_service.dart
@@ -28,6 +29,8 @@ lib/
 │   ├── group_projects_screen.dart
 │   ├── materials_screen.dart
 │   ├── profile_settings_screen.dart
+│   ├── attendance_screen.dart
+│   ├── teacher_assignments_screen.dart
 │   └── coming_soon_screen.dart
 ├── raw/
 │   └── logo.png

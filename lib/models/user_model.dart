@@ -3,7 +3,7 @@ class UserModel {
   final String fullName;
   final String email;
   final String role; // 'student', 'teacher', 'admin'
-  final String? password; // Added to store password for admin visibility
+  final String? password;
   String? username;
   int? age;
   String? gender;
@@ -15,8 +15,9 @@ class UserModel {
   String? furtherPhone;
   String? profilePic;
   bool profileComplete;
-  int? semester; // New field for students
-  String? batch; // New field for batch (e.g., 2021-2025)
+  int? semester;
+  String? batch; 
+  String? branch; // New field for branch (IT, CE, etc.)
 
   UserModel({
     required this.uid,
@@ -37,6 +38,7 @@ class UserModel {
     this.profileComplete = false,
     this.semester,
     this.batch,
+    this.branch,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> data, String uid) {
@@ -59,6 +61,7 @@ class UserModel {
       profileComplete: data['profileComplete'] ?? false,
       semester: data['semester'],
       batch: data['batch'],
+      branch: data['branch'],
     );
   }
 
@@ -81,6 +84,7 @@ class UserModel {
       'profileComplete': profileComplete,
       'semester': semester,
       'batch': batch,
+      'branch': branch,
     };
   }
 }
