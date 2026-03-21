@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
@@ -9,17 +10,26 @@ import 'teachers_list_screen.dart';
 import 'students_section_screen.dart';
 import 'canteen_screen.dart';
 import 'college_info_screen.dart';
-import 'coming_soon_screen.dart';
 import 'attendance_screen.dart';
+import 'order_history_screen.dart';
 
-class StudentHomeScreen extends StatefulWidget {
+class StudentHomeScreen extends StatelessWidget {
   const StudentHomeScreen({super.key});
 
   @override
-  State<StudentHomeScreen> createState() => _StudentHomeScreenState();
+  Widget build(BuildContext context) {
+    return const _StudentHomeScreenContent();
+  }
 }
 
-class _StudentHomeScreenState extends State<StudentHomeScreen> {
+class _StudentHomeScreenContent extends StatefulWidget {
+  const _StudentHomeScreenContent();
+
+  @override
+  State<_StudentHomeScreenContent> createState() => _StudentHomeScreenContentState();
+}
+
+class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
   final _auth = AuthService();
   UserModel? _currentUser;
   bool _isLoading = true;
@@ -93,6 +103,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ),
             actions: [
               IconButton(
+                icon: const Icon(Icons.history_rounded, color: Colors.white),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen())),
+                tooltip: "Order History",
+              ),
+              IconButton(
                 icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
                 onPressed: () {},
               ),
@@ -145,9 +160,15 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   ),
                   
                   const SizedBox(height: 24),
-                  
-                  // Attendance Summary Card (NEW)
-                  _buildAttendanceSummaryCard(theme),
+
+                  // Today's Classes & Submissions
+                  Row(
+                    children: [
+                      _buildClassTodayCard(theme),
+                      const SizedBox(width: 16),
+                      _buildSubmissionCard(theme),
+                    ],
+                  ),
                   
                   const SizedBox(height: 24),
                   
@@ -170,16 +191,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               ),
               delegate: SliverChildListDelegate([
                 _ModernHomeCard(
+                  title: "Students Section",
+                  icon: Icons.group_rounded,
+                  color: Colors.orange,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentsSectionScreen(user: _currentUser))),
+                ),
+                _ModernHomeCard(
                   title: "Attendance",
                   icon: Icons.calendar_month_rounded,
                   color: Colors.green,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(student: _currentUser))),
-                ),
-                _ModernHomeCard(
-                  title: "Students Section",
-                  icon: Icons.group_rounded,
-                  color: Colors.orange,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentsSectionScreen())),
                 ),
                 _ModernHomeCard(
                   title: "Teachers",
@@ -208,70 +229,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  Widget _buildAttendanceSummaryCard(ThemeData theme) {
-    if (_currentUser == null) return const SizedBox();
-    
-    return StreamBuilder<QuerySnapshot>(
-      stream: _auth.getStudentAttendance(_currentUser!.uid, _currentUser!.semester ?? 1),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox();
-        
-        final docs = snapshot.data!.docs;
-        int totalDays = docs.length;
-        int presentDays = 0;
-        for (var doc in docs) {
-          final data = doc.data() as Map<String, dynamic>;
-          final presentList = List<String>.from(data['presentStudents'] ?? []);
-          if (presentList.contains(_currentUser!.uid)) presentDays++;
-        }
-        
-        double percentage = totalDays == 0 ? 0 : (presentDays / totalDays) * 100;
-        
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: (percentage >= 75 ? Colors.green : Colors.red).withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    "${percentage.toInt()}%",
-                    style: TextStyle(
-                      color: percentage >= 75 ? Colors.green : Colors.red,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Attendance Record", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text("$presentDays/$totalDays days present", style: const TextStyle(color: Colors.grey)),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey[400]),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildInfoChip(ThemeData theme, IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -286,6 +243,83 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           Icon(icon, size: 16, color: theme.colorScheme.primary),
           const SizedBox(width: 6),
           Text(label, style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClassTodayCard(ThemeData theme) {
+    if (_currentUser == null) return const SizedBox();
+    String day = DateFormat('EEEE').format(DateTime.now());
+    
+    return Expanded(
+      child: StreamBuilder<DocumentSnapshot>(
+        stream: _auth.getTimetable(_currentUser!.branch ?? '', _currentUser!.semester ?? 1, day),
+        builder: (context, snapshot) {
+          int count = 0;
+          if (snapshot.hasData && snapshot.data!.exists) {
+            List slots = snapshot.data!.get('slots') ?? [];
+            count = slots.where((s) => s['type'] == 'Subject').length;
+          }
+          
+          return _buildStatCard(context, "$count", "Classes today", Icons.book_rounded);
+        },
+      ),
+    );
+  }
+
+  Widget _buildSubmissionCard(ThemeData theme) {
+    if (_currentUser == null) return const SizedBox();
+
+    return Expanded(
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('assignments')
+            .where('branchId', isEqualTo: _currentUser!.branch)
+            .where('batchId', isEqualTo: _currentUser!.batch)
+            .snapshots(),
+        builder: (context, assignmentSnap) {
+          if (!assignmentSnap.hasData) return _buildStatCard(context, "0", "Submissions", Icons.assignment_turned_in_rounded);
+
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('submissions')
+                .where('studentId', isEqualTo: _currentUser!.uid)
+                .snapshots(),
+            builder: (context, submissionSnap) {
+              int totalAssignments = assignmentSnap.data!.docs.length;
+              int submittedCount = 0;
+              
+              if (submissionSnap.hasData) {
+                submittedCount = submissionSnap.data!.docs.length;
+              }
+
+              int remaining = totalAssignments - submittedCount;
+              if (remaining < 0) remaining = 0;
+
+              return _buildStatCard(context, "$remaining", "Submissions", Icons.assignment_turned_in_rounded);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStatCard(BuildContext context, String value, String label, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Theme.of(context).colorScheme.primary, size: 24),
+          const SizedBox(height: 12),
+          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
         ],
       ),
     );

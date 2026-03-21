@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import 'login_screen.dart';
+import 'holiday_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -41,6 +42,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           backgroundColor: Colors.indigo,
           foregroundColor: Colors.white,
           actions: [
+            IconButton(
+              icon: const Icon(Icons.event_note),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HolidayScreen(isAdmin: true))),
+              tooltip: "Manage Holidays",
+            ),
             IconButton(
               icon: const Icon(Icons.logout),
               onPressed: () async {
@@ -98,23 +104,33 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           DropdownButtonFormField<String>(
             value: _selectedRole,
             decoration: const InputDecoration(labelText: "User Role", border: OutlineInputBorder()),
-            items: const [DropdownMenuItem(value: 'student', child: Text("Student")), DropdownMenuItem(value: 'teacher', child: Text("Teacher"))],
-            onChanged: (val) => setState(() { _selectedRole = val!; _selectedBranchId = null; _selectedBatchName = null; }),
+            items: const [
+              DropdownMenuItem(value: 'student', child: Text("Student")),
+              DropdownMenuItem(value: 'teacher', child: Text("Teacher")),
+              DropdownMenuItem(value: 'retailer', child: Text("Retailer (Canteen)")),
+            ],
+            onChanged: (val) => setState(() { 
+              _selectedRole = val!; 
+              _selectedBranchId = null; 
+              _selectedBatchName = null; 
+            }),
           ),
-          const SizedBox(height: 16),
-          StreamBuilder<QuerySnapshot>(
-            stream: _auth.getBranches(),
-            builder: (context, snap) {
-              if (!snap.hasData) return const LinearProgressIndicator();
-              var branches = snap.data!.docs;
-              return DropdownButtonFormField<String>(
-                value: _selectedBranchId,
-                decoration: const InputDecoration(labelText: "Select Branch", border: OutlineInputBorder()),
-                items: branches.map((doc) => DropdownMenuItem(value: doc.id, child: Text(doc.id))).toList(),
-                onChanged: (val) => setState(() { _selectedBranchId = val; _selectedBatchName = null; }),
-              );
-            },
-          ),
+          if (_selectedRole != 'retailer') ...[
+            const SizedBox(height: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream: _auth.getBranches(),
+              builder: (context, snap) {
+                if (!snap.hasData) return const LinearProgressIndicator();
+                var branches = snap.data!.docs;
+                return DropdownButtonFormField<String>(
+                  value: _selectedBranchId,
+                  decoration: const InputDecoration(labelText: "Select Branch", border: OutlineInputBorder()),
+                  items: branches.map((doc) => DropdownMenuItem(value: doc.id, child: Text(doc.id))).toList(),
+                  onChanged: (val) => setState(() { _selectedBranchId = val; _selectedBatchName = null; }),
+                );
+              },
+            ),
+          ],
           if (_selectedRole == 'student' && _selectedBranchId != null) ...[
             const SizedBox(height: 16),
             StreamBuilder<QuerySnapshot>(
@@ -145,10 +161,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Future<void> _handleCreateUser() async {
     final messenger = ScaffoldMessenger.of(context);
-    if (_nameCtrl.text.isEmpty || _emailCtrl.text.isEmpty || _selectedBranchId == null) {
+    if (_nameCtrl.text.isEmpty || _emailCtrl.text.isEmpty) {
       messenger.showSnackBar(const SnackBar(content: Text("Please fill all required fields")));
       return;
     }
+    if (_selectedRole != 'retailer' && _selectedBranchId == null) {
+      messenger.showSnackBar(const SnackBar(content: Text("Please select a branch")));
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       await _auth.signUpUser(
@@ -159,6 +180,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         branch: _selectedBranchId,
         batch: _selectedBatchName,
       );
+      
+      // If it's a retailer, we mark their profile as complete automatically
+      if (_selectedRole == 'retailer') {
+        final users = await _auth.getAllUsers().first;
+        final newUser = users.firstWhere((u) => u.email == _emailCtrl.text.trim());
+        newUser.profileComplete = true;
+        await _auth.updateProfile(newUser);
+      }
+
       messenger.showSnackBar(const SnackBar(content: Text("User Created Successfully!")));
       _nameCtrl.clear(); _emailCtrl.clear();
     } catch (e) {
@@ -327,9 +357,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             return Card(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ListTile(
-                leading: CircleAvatar(backgroundColor: user.role == 'teacher' ? Colors.orange : Colors.blue, child: Text(user.role[0].toUpperCase(), style: const TextStyle(color: Colors.white))),
+                leading: CircleAvatar(
+                  backgroundColor: user.role == 'teacher' ? Colors.orange : (user.role == 'retailer' ? Colors.green : Colors.blue), 
+                  child: Text(user.role[0].toUpperCase(), style: const TextStyle(color: Colors.white)),
+                ),
                 title: Text(user.fullName),
-                subtitle: Text("${user.role.toUpperCase()} | Branch: ${user.branch ?? 'N/A'} ${user.role == 'student' ? '| Batch: ${user.batch ?? 'N/A'}' : ''}"),
+                subtitle: Text("${user.role.toUpperCase()} ${user.role != 'retailer' ? '| Branch: ${user.branch ?? 'N/A'}' : ''} ${user.role == 'student' ? '| Batch: ${user.batch ?? 'N/A'}' : ''}"),
                 trailing: user.role == 'teacher' ? IconButton(
                   icon: const Icon(Icons.edit, color: Colors.indigo),
                   onPressed: () => _showEditTeacherBranchDialog(user),

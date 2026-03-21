@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/canteen_service.dart';
+import '../services/auth_service.dart';
 import 'cart_screen.dart';
 
 class CanteenScreen extends StatefulWidget {
@@ -9,10 +12,13 @@ class CanteenScreen extends StatefulWidget {
 }
 
 class _CanteenScreenState extends State<CanteenScreen> {
+  final CanteenService _canteenService = CanteenService();
+  final AuthService _authService = AuthService();
   String _searchQuery = "";
   String _selectedCategory = "All";
-  // ignore: prefer_final_fields
   List<Map<String, dynamic>> _cartItems = [];
+  String? _userRole;
+  String? _userName;
 
   final List<Map<String, dynamic>> categories = [
     {'name': 'All', 'icon': Icons.all_inclusive, 'color': Colors.grey},
@@ -24,20 +30,20 @@ class _CanteenScreenState extends State<CanteenScreen> {
     {'name': 'Biscuit', 'icon': Icons.bakery_dining, 'color': Colors.brown},
   ];
 
-  final List<Map<String, dynamic>> canteenItems = [
-    {'name': 'Coca Cola', 'category': 'Cold-Drink', 'price': '₹40'},
-    {'name': 'Pepsi', 'category': 'Cold-Drink', 'price': '₹40'},
-    {'name': 'Burger', 'category': 'Junk Food', 'price': '₹60'},
-    {'name': 'Pizza', 'category': 'Junk Food', 'price': '₹120'},
-    {'name': 'Samosa', 'category': 'Snacks', 'price': '₹20'},
-    {'name': 'Vadapav', 'category': 'Snacks', 'price': '₹20'},
-    {'name': 'Vanilla Ice Cream', 'category': 'Ice Cream', 'price': '₹50'},
-    {'name': 'Chocolate Cone', 'category': 'Ice Cream', 'price': '₹70'},
-    {'name': 'Balaji Wafers', 'category': 'Wafers', 'price': '₹10'},
-    {'name': 'Kurkure', 'category': 'Wafers', 'price': '₹20'},
-    {'name': 'Parle-G', 'category': 'Biscuit', 'price': '₹5'},
-    {'name': 'Hide & Seek', 'category': 'Biscuit', 'price': '₹30'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final users = await _authService.getAllUsers().first;
+    final currentUser = users.firstWhere((u) => u.uid == _authService.currentUser?.uid);
+    setState(() {
+      _userRole = currentUser.role;
+      _userName = currentUser.fullName;
+    });
+  }
 
   void _addToCart(Map<String, dynamic> item) {
     setState(() {
@@ -57,52 +63,96 @@ class _CanteenScreenState extends State<CanteenScreen> {
     );
   }
 
+  void _showAddItemDialog({String? itemId, Map<String, dynamic>? existingData}) {
+    final nameCtrl = TextEditingController(text: existingData?['name']);
+    final priceCtrl = TextEditingController(text: existingData?['price']?.toString().replaceAll('₹', ''));
+    String category = existingData?['category'] ?? 'Snacks';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(itemId == null ? "Add Item" : "Edit Item"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Item Name")),
+                TextField(controller: priceCtrl, decoration: const InputDecoration(labelText: "Price (e.g. 20)"), keyboardType: TextInputType.number),
+                DropdownButton<String>(
+                  value: category,
+                  isExpanded: true,
+                  items: categories.where((c) => c['name'] != 'All').map((c) => DropdownMenuItem(value: c['name'] as String, child: Text(c['name'] as String))).toList(),
+                  onChanged: (val) => setDialogState(() => category = val!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+            ElevatedButton(
+              onPressed: () async {
+                final data = {
+                  'name': nameCtrl.text,
+                  'price': '₹${priceCtrl.text}',
+                  'category': category,
+                };
+                if (itemId == null) {
+                  await _canteenService.addCanteenItem(data);
+                } else {
+                  await _canteenService.updateCanteenItem(itemId, data);
+                }
+                if (mounted) Navigator.pop(context);
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    var filteredItems = canteenItems.where((item) {
-      bool matchesSearch = item['name'].toLowerCase().contains(_searchQuery.toLowerCase());
-      bool matchesCategory = _selectedCategory == "All" || item['category'] == _selectedCategory;
-      return matchesSearch && matchesCategory;
-    }).toList();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("Canteen Menu"),
         centerTitle: true,
         actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.shopping_cart),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CartScreen(cartItems: _cartItems),
-                    ),
-                  ).then((_) => setState(() {})); // Update when returning
-                },
-              ),
-              if (_cartItems.isNotEmpty)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: CircleAvatar(
-                    radius: 8,
-                    backgroundColor: Colors.red,
-                    child: Text(
-                      "${_cartItems.length}",
-                      style: const TextStyle(fontSize: 10, color: Colors.white),
+          if (_userRole != 'retailer')
+            Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.shopping_cart),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CartScreen(
+                          cartItems: _cartItems, 
+                          userName: _userName ?? "User",
+                          userRole: _userRole ?? "student",
+                        ),
+                      ),
+                    ).then((_) => setState(() {}));
+                  },
+                ),
+                if (_cartItems.isNotEmpty)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: CircleAvatar(
+                      radius: 8,
+                      backgroundColor: Colors.red,
+                      child: Text("${_cartItems.length}", style: const TextStyle(fontSize: 10, color: Colors.white)),
                     ),
                   ),
-                ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
       body: Column(
         children: [
-          // Search Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
@@ -116,8 +166,6 @@ class _CanteenScreenState extends State<CanteenScreen> {
               ),
             ),
           ),
-
-          // Categories Row
           SizedBox(
             height: 100,
             child: ListView.builder(
@@ -147,46 +195,73 @@ class _CanteenScreenState extends State<CanteenScreen> {
               },
             ),
           ),
-
           const Divider(),
-
-          // Items List
           Expanded(
-            child: filteredItems.isEmpty
-                ? const Center(child: Text("No items found"))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filteredItems.length,
-                    itemBuilder: (context, index) {
-                      final item = filteredItems[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: ListTile(
-                          leading: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8)),
-                            child: const Icon(Icons.fastfood, color: Colors.orange),
-                          ),
-                          title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(item['price'], style: const TextStyle(color: Colors.green)),
-                          trailing: ElevatedButton(
-                            onPressed: () => _addToCart(item),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue.shade50,
-                              foregroundColor: Colors.blue,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            ),
-                            child: const Text("ADD"),
-                          ),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _canteenService.getCanteenItems(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                
+                var items = snapshot.data!.docs.map((doc) => {
+                  'id': doc.id,
+                  ...doc.data() as Map<String, dynamic>
+                }).where((item) {
+                  bool matchesSearch = item['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
+                  bool matchesCategory = _selectedCategory == "All" || item['category'] == _selectedCategory;
+                  return matchesSearch && matchesCategory;
+                }).toList();
+
+                if (items.isEmpty) return const Center(child: Text("No items found"));
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8)),
+                          child: const Icon(Icons.fastfood, color: Colors.orange),
                         ),
-                      );
-                    },
-                  ),
+                        title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(item['price'], style: const TextStyle(color: Colors.green)),
+                        trailing: _userRole == 'retailer'
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _showAddItemDialog(itemId: item['id'], existingData: item)),
+                                  IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _canteenService.deleteCanteenItem(item['id'])),
+                                ],
+                              )
+                            : ElevatedButton(
+                                onPressed: () => _addToCart(item),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue.shade50,
+                                  foregroundColor: Colors.blue,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                ),
+                                child: const Text("ADD"),
+                              ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
+      floatingActionButton: _userRole == 'retailer'
+          ? FloatingActionButton(
+              onPressed: () => _showAddItemDialog(),
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }

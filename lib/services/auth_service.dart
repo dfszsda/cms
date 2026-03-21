@@ -9,6 +9,8 @@ class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Authentication
+  User? get currentUser => _auth.currentUser;
+
   Future<UserModel?> signIn(String email, String password) async {
     try {
       UserCredential cred = await _auth.signInWithEmailAndPassword(
@@ -72,8 +74,7 @@ class AuthService {
       if (!branchSnap.exists) throw "Branch does not exist";
       int currentCount = branchSnap.get('batchCount') ?? 0;
       if (currentCount >= 4) throw "Maximum 4 batches allowed per branch";
-      int nextBatchNum = currentCount + 1;
-      String fullName = "$nextBatchNum$branchId-$batchLetter-$year";
+      int nextBatchNum = currentCount + 1;      String fullName = "$nextBatchNum$branchId-$batchLetter-$year";
       transaction.set(_firestore.collection('batches').doc(), {
         'branchId': branchId,
         'batchLetter': batchLetter,
@@ -105,6 +106,7 @@ class AuthService {
     required String subject,
     required DateTime date,
     required List<String> presentUids,
+    List<String>? absentUids,
   }) async {
     String dateStr = "${date.year}-${date.month}-${date.day}";
     await _firestore.collection('attendance').add({
@@ -114,15 +116,42 @@ class AuthService {
       'date': Timestamp.fromDate(date),
       'dateString': dateStr,
       'presentStudents': presentUids,
+      'absentStudents': absentUids ?? [],
       'teacherId': _auth.currentUser?.uid,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
-  Stream<QuerySnapshot> getStudentAttendance(String uid, int semester) {
+  Stream<QuerySnapshot> getStudentAttendance(String uid, String branch, int semester) {
     return _firestore.collection('attendance')
+        .where('branchId', isEqualTo: branch)
         .where('semester', isEqualTo: semester)
         .snapshots();
+  }
+
+  // Holiday Management
+  Future<void> addHoliday({
+    required DateTime date,
+    required String title,
+    String? branchId,
+  }) async {
+    await _firestore.collection('holidays').add({
+      'date': Timestamp.fromDate(date),
+      'title': title,
+      'branchId': branchId, // If null, it's a global holiday
+      'teacherId': _auth.currentUser?.uid,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Stream<QuerySnapshot> getAllHolidays() {
+    return _firestore.collection('holidays').orderBy('date').snapshots();
+  }
+
+  Stream<QuerySnapshot> getHolidays(String branchId) {
+    // Returns holidays for a specific branch or global holidays
+    return _firestore.collection('holidays')
+        .snapshots(); // Simple for now, can be filtered if needed
   }
 
   // Subject Management

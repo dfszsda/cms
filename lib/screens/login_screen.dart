@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'signup_screen.dart';
 import 'change_password_screen.dart';
 import 'student_home_screen.dart';
 import 'teacher_home_screen.dart';
 import 'admin_home_screen.dart';
+import 'retailer_home_screen.dart';
 import 'profile_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -49,6 +49,11 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
+        );
+      } else if (user.role == 'retailer') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const RetailerHomeScreen()),
         );
       } else {
         final isFirst = await _auth.isFirstTimeLogin(user.uid);
@@ -205,16 +210,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text("Login", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("Don't have an account? ", style: TextStyle(color: Colors.grey)),
-                  TextButton(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupScreen())),
-                    child: const Text("Sign Up", style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ],
+              const Center(
+                child: Text(
+                  "Contact Admin to create an account",
+                  style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                ),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),

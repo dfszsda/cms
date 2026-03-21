@@ -3,6 +3,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 
@@ -22,7 +23,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String? _selectedSubject;
   DateTime _selectedDate = DateTime.now();
   List<String> _presentStudents = [];
+  List<String> _absentStudents = [];
   bool _isSaving = false;
+
+  // Calendar properties
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedCalendarDay;
 
   @override
   void initState() {
@@ -46,15 +53,107 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
+  void _showAddHolidayDialog() {
+    final titleController = TextEditingController();
+    DateTime holidayDate = DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text("Set Holiday / Special Day"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: "Event Title (e.g. Diwali / Working Saturday)"),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                title: Text("Date: ${DateFormat('dd-MM-yyyy').format(holidayDate)}"),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: holidayDate,
+                    firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                  );
+                  if (picked != null) {
+                    setDialogState(() => holidayDate = picked);
+                  }
+                },
+              ),
+              if (holidayDate.weekday == DateTime.saturday)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    "Note: This Saturday will be marked as a Working Day if you add a title like 'Working Day'.",
+                    style: TextStyle(fontSize: 12, color: Colors.blue, fontStyle: FontStyle.italic),
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+            ElevatedButton(
+              onPressed: () async {
+                if (titleController.text.isNotEmpty) {
+                  final messenger = ScaffoldMessenger.of(context);
+                  final navigator = Navigator.of(context);
+                  
+                  // If it's a Saturday and contains "Working", we can flag it differently or just store it in a special collection
+                  bool isWorkingSaturday = holidayDate.weekday == DateTime.saturday && 
+                                           titleController.text.toLowerCase().contains("working");
+
+                  if (isWorkingSaturday) {
+                    await FirebaseFirestore.instance.collection('working_saturdays').add({
+                      'date': Timestamp.fromDate(DateTime(holidayDate.year, holidayDate.month, holidayDate.day)),
+                      'title': titleController.text.trim(),
+                      'branchId': widget.teacherBranch,
+                      'teacherId': _auth.currentUser?.uid,
+                      'createdAt': FieldValue.serverTimestamp(),
+                    });
+                  } else {
+                    await _auth.addHoliday(
+                      date: holidayDate,
+                      title: titleController.text.trim(),
+                      branchId: widget.teacherBranch,
+                    );
+                  }
+                  
+                  navigator.pop();
+                  messenger.showSnackBar(SnackBar(content: Text(isWorkingSaturday ? "Working Saturday Announced!" : "Holiday Added!")));
+                }
+              },
+              child: const Text("Add"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isTeacher = widget.teacherBranch != null;
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Text(isTeacher ? "Take Attendance" : "My Attendance"),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          if (isTeacher)
+            IconButton(
+              icon: const Icon(Icons.event_note),
+              onPressed: _showAddHolidayDialog,
+              tooltip: "Set Special Day",
+            ),
+        ],
       ),
       body: isTeacher ? _buildTeacherView() : _buildStudentView(),
     );
@@ -82,6 +181,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                             _selectedSemester = val;
                             _selectedSubject = null;
                             _presentStudents.clear();
+                            _absentStudents.clear();
                           });
                         }
                       },
@@ -134,26 +234,73 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("No students found."));
 
               final students = snapshot.data!;
+              
               return ListView.builder(
                 itemCount: students.length,
                 itemBuilder: (context, index) {
                   final student = students[index];
-                  final isPresent = _presentStudents.contains(student.uid);
+                  bool isPresent = _presentStudents.contains(student.uid);
+                  bool isAbsent = _absentStudents.contains(student.uid);
 
-                  return CheckboxListTile(
-                    title: Text(student.fullName),
-                    subtitle: Text("Batch: ${student.batch ?? 'N/A'}"),
-                    value: isPresent,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        if (value == true) {
-                          _presentStudents.add(student.uid);
-                        } else {
-                          _presentStudents.remove(student.uid);
-                        }
-                      });
-                    },
-                    secondary: const Icon(Icons.person),
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person, color: Colors.indigo),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(student.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text("Batch: ${student.batch ?? 'N/A'}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        // Present Option
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text("P", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green)),
+                            Radio<bool>(
+                              value: true,
+                              groupValue: isPresent ? true : (isAbsent ? false : null),
+                              activeColor: Colors.green,
+                              onChanged: (val) {
+                                setState(() {
+                                  _presentStudents.add(student.uid);
+                                  _absentStudents.remove(student.uid);
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                        // Absent Option
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text("A", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red)),
+                            Radio<bool>(
+                              value: false,
+                              groupValue: isPresent ? true : (isAbsent ? false : null),
+                              activeColor: Colors.red,
+                              onChanged: (val) {
+                                setState(() {
+                                  _absentStudents.add(student.uid);
+                                  _presentStudents.remove(student.uid);
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   );
                 },
               );
@@ -168,8 +315,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               onPressed: _handleSaveAttendance,
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),
-                backgroundColor: Colors.green,
+                backgroundColor: Colors.indigo,
                 foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text("SUBMIT ATTENDANCE", style: TextStyle(fontWeight: FontWeight.bold)),
             ),
@@ -180,93 +328,265 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Widget _buildStudentView() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _auth.getStudentAttendance(widget.student!.uid, widget.student!.semester ?? 1),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        
-        final docs = snapshot.data!.docs;
-        int totalClasses = docs.length;
-        int presentClasses = 0;
+      stream: _auth.getStudentAttendance(widget.student!.uid, widget.student!.branch ?? '', widget.student!.semester ?? 1),
+      builder: (context, attendanceSnap) {
+        return StreamBuilder<QuerySnapshot>(
+          stream: _auth.getAllHolidays(),
+          builder: (context, holidaySnap) {
+            return StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('working_saturdays').snapshots(),
+              builder: (context, workingSatSnap) {
+                if (attendanceSnap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                
+                final attendanceDocs = attendanceSnap.data?.docs ?? [];
+                final holidayDocs = holidaySnap.data?.docs ?? [];
+                final workingSatDocs = workingSatSnap.data?.docs ?? [];
+                
+                Map<DateTime, String> statusMap = {};
+                Map<DateTime, String> holidayTitles = {};
+                Set<DateTime> workingSaturdays = {};
+                int presentClasses = 0;
+                int totalClasses = 0;
 
-        for (var doc in docs) {
-          final data = doc.data() as Map<String, dynamic>;
-          final presentList = List<String>.from(data['presentStudents'] ?? []);
-          if (presentList.contains(widget.student!.uid)) presentClasses++;
-        }
+                // Process Working Saturdays (Exceptions)
+                for (var doc in workingSatDocs) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final date = (data['date'] as Timestamp).toDate();
+                  final day = DateTime(date.year, date.month, date.day);
+                  workingSaturdays.add(day);
+                  holidayTitles[day] = "Working Saturday: ${data['title']}";
+                }
 
-        double percentage = totalClasses == 0 ? 0 : (presentClasses / totalClasses) * 100;
+                // Process Attendance
+                for (var doc in attendanceDocs) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final date = (data['date'] as Timestamp).toDate();
+                  final day = DateTime(date.year, date.month, date.day);
+                  final presentList = List<String>.from(data['presentStudents'] ?? []);
+                  final absentList = List<String>.from(data['absentStudents'] ?? []);
+                  
+                  if (presentList.contains(widget.student!.uid)) {
+                    statusMap[day] = 'present';
+                    presentClasses++;
+                    totalClasses++;
+                  } else if (absentList.contains(widget.student!.uid)) {
+                    statusMap[day] = 'absent';
+                    totalClasses++;
+                  }
+                }
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
+                // Process Holidays
+                for (var doc in holidayDocs) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final date = (data['date'] as Timestamp).toDate();
+                  final day = DateTime(date.year, date.month, date.day);
+                  statusMap[day] = 'holiday';
+                  holidayTitles[day] = data['title'] ?? 'Holiday';
+                }
+
+                double percentage = totalClasses == 0 ? 0 : (presentClasses / totalClasses) * 100;
+
+                return SingleChildScrollView(
                   child: Column(
                     children: [
-                      Text("Attendance Summary (Sem ${widget.student!.semester})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildSummaryItem("Total", totalClasses.toString(), Colors.blue),
-                          _buildSummaryItem("Present", presentClasses.toString(), Colors.green),
-                          _buildSummaryItem("Percentage", "${percentage.toStringAsFixed(1)}%", percentage >= 75 ? Colors.green : Colors.red),
-                        ],
+                      // Summary Section
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: const BoxDecoration(
+                          color: Colors.indigo,
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(30),
+                            bottomRight: Radius.circular(30),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              "${percentage.toStringAsFixed(1)}%",
+                              style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold),
+                            ),
+                            const Text("Attendance Percentage", style: TextStyle(color: Colors.white70)),
+                            const SizedBox(height: 20),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildSummaryStat("Total", totalClasses.toString()),
+                                _buildSummaryStat("Present", presentClasses.toString()),
+                                _buildSummaryStat("Absent", (totalClasses - presentClasses).toString()),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
+
+                      // Calendar Section
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          child: Column(
+                            children: [
+                              TableCalendar(
+                                firstDay: DateTime.utc(2020, 1, 1),
+                                lastDay: DateTime.now().add(const Duration(days: 365)),
+                                focusedDay: _focusedDay,
+                                calendarFormat: _calendarFormat,
+                                selectedDayPredicate: (day) => isSameDay(_selectedCalendarDay, day),
+                                onDaySelected: (selectedDay, focusedDay) {
+                                  setState(() {
+                                    _selectedCalendarDay = selectedDay;
+                                    _focusedDay = focusedDay;
+                                  });
+                                },
+                                onFormatChanged: (format) {
+                                  setState(() {
+                                    _calendarFormat = format;
+                                  });
+                                },
+                                calendarBuilders: CalendarBuilders(
+                                  defaultBuilder: (context, day, focusedDay) {
+                                    final dateOnly = DateTime(day.year, day.month, day.day);
+                                    final status = statusMap[dateOnly];
+                                    
+                                    // Default Holiday Rules
+                                    bool isDefaultHoliday = day.weekday == DateTime.sunday || day.weekday == DateTime.saturday;
+                                    
+                                    // Exception: Working Saturday
+                                    if (day.weekday == DateTime.saturday && workingSaturdays.contains(dateOnly)) {
+                                      isDefaultHoliday = false;
+                                    }
+
+                                    if (isDefaultHoliday) {
+                                      return _buildCalendarDay(day, Colors.orange);
+                                    }
+                                    
+                                    if (status == 'present') {
+                                      return _buildCalendarDay(day, Colors.green);
+                                    } else if (status == 'absent') {
+                                      return _buildCalendarDay(day, Colors.red);
+                                    } else if (status == 'holiday') {
+                                      return _buildCalendarDay(day, Colors.orange);
+                                    }
+                                    return null;
+                                  },
+                                  todayBuilder: (context, day, focusedDay) {
+                                    return _buildCalendarDay(day, Colors.blue, isToday: true);
+                                  },
+                                ),
+                                headerStyle: const HeaderStyle(
+                                  formatButtonVisible: false,
+                                  titleCentered: true,
+                                  titleTextStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                                ),
+                              ),
+                              if (_selectedCalendarDay != null) _buildSelectedDayInfo(statusMap, holidayTitles, workingSaturdays),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Legend
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 15,
+                          children: [
+                            _buildLegendItem(Colors.green, "Present"),
+                            _buildLegendItem(Colors.red, "Absent"),
+                            _buildLegendItem(Colors.orange, "Holiday/Sat/Sun"),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 30),
-              const Align(alignment: Alignment.centerLeft, child: Text("History", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
-              const SizedBox(height: 10),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: docs.length,
-                itemBuilder: (context, index) {
-                  final data = docs[index].data() as Map<String, dynamic>;
-                  final date = (data['date'] as Timestamp).toDate();
-                  final subject = data['subject'] ?? 'N/A';
-                  final isPresent = List<String>.from(data['presentStudents']).contains(widget.student!.uid);
-                  
-                  return Card(
-                    child: ListTile(
-                      leading: Icon(isPresent ? Icons.check_circle : Icons.cancel, color: isPresent ? Colors.green : Colors.red),
-                      title: Text(subject),
-                      subtitle: Text(DateFormat('dd-MM-yyyy').format(date)),
-                      trailing: Text(isPresent ? "Present" : "Absent", style: TextStyle(color: isPresent ? Colors.green : Colors.red, fontWeight: FontWeight.bold)),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+                );
+              },
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildSummaryItem(String label, String value, Color color) {
+  Widget _buildSelectedDayInfo(Map<DateTime, String> statusMap, Map<DateTime, String> holidayTitles, Set<DateTime> workingSaturdays) {
+    final day = DateTime(_selectedCalendarDay!.year, _selectedCalendarDay!.month, _selectedCalendarDay!.day);
+    String? title;
+
+    if (workingSaturdays.contains(day)) {
+      title = holidayTitles[day] ?? "Working Saturday";
+    } else if (day.weekday == DateTime.sunday) {
+      title = "Weekly Holiday (Sunday)";
+    } else if (day.weekday == DateTime.saturday) {
+      title = "Weekly Holiday (Saturday)";
+    } else if (statusMap[day] == 'holiday') {
+      title = holidayTitles[day] ?? 'Holiday';
+    }
+
+    if (title != null) {
+      bool isWorking = workingSaturdays.contains(day);
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Text(
+          isWorking ? "Notice: $title" : "Holiday: $title",
+          style: TextStyle(fontWeight: FontWeight.bold, color: isWorking ? Colors.blue : Colors.orange),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+    return const SizedBox();
+  }
+
+  Widget _buildCalendarDay(DateTime day, Color color, {bool isToday = false}) {
+    return Container(
+      margin: const EdgeInsets.all(4),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        shape: BoxShape.circle,
+        border: isToday ? Border.all(color: Colors.blue, width: 2) : null,
+      ),
+      child: Text(
+        day.day.toString(),
+        style: TextStyle(color: color, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 8),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      ],
+    );
+  }
+
+  Widget _buildSummaryStat(String label, String value) {
     return Column(
       children: [
-        Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
-        Text(label, style: const TextStyle(color: Colors.grey)),
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 12)),
       ],
     );
   }
 
   Future<void> _handleSaveAttendance() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
     if (_selectedSubject == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a subject.")));
+      messenger.showSnackBar(const SnackBar(content: Text("Please select a subject.")));
       return;
     }
-    if (_presentStudents.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No students selected.")));
+    
+    if (_presentStudents.isEmpty && _absentStudents.isEmpty) {
+      messenger.showSnackBar(const SnackBar(content: Text("Please mark attendance for students.")));
       return;
     }
 
@@ -278,13 +598,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         subject: _selectedSubject!,
         date: _selectedDate,
         presentUids: _presentStudents,
+        absentUids: _absentStudents,
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Attendance recorded successfully!")));
-        Navigator.pop(context);
-      }
+      
+      messenger.showSnackBar(const SnackBar(content: Text("Attendance recorded successfully!")));
+      navigator.pop();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      messenger.showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

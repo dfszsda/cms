@@ -3,83 +3,181 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/todo_model.dart';
+import '../models/user_model.dart';
+import '../services/auth_service.dart';
 
 class GroupProjectsScreen extends StatefulWidget {
-  const GroupProjectsScreen({super.key});
+  final UserModel? user;
+  const GroupProjectsScreen({super.key, this.user});
 
   @override
   State<GroupProjectsScreen> createState() => _GroupProjectsScreenState();
 }
 
 class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
-  final _projectNameCtrl = TextEditingController();
+  final _auth = AuthService();
+  
+  UserModel? _internalUser;
 
-  Future<void> _createProject() async {
-    if (_projectNameCtrl.text.isEmpty) return;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.user == null) {
+      _loadUserData();
+    } else {
+      _internalUser = widget.user;
+    }
+  }
 
+  Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      final project = GroupProject(
-        id: '',
-        name: _projectNameCtrl.text.trim(),
-        leaderId: user.uid,
-        memberIds: [user.uid],
-        createdAt: DateTime.now(),
-      );
-
-      await FirebaseFirestore.instance.collection('projects').add(project.toMap());
-      
-      if (mounted) {
-        _projectNameCtrl.clear();
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Project group created successfully!")),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error creating project: $e")),
-        );
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        setState(() {
+          _internalUser = UserModel.fromMap(doc.data()!, user.uid);
+        });
       }
     }
   }
 
   void _showCreateProjectSheet() {
+    if (_internalUser == null) return;
+    
+    int selectedSem = _internalUser!.semester ?? 1;
+    List<UserModel> selectedStudents = [];
+    UserModel? selectedLeader;
+    final projectNameCtrl = TextEditingController();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          left: 20,
-          right: 20,
-          top: 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text("Create New Project Group", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _projectNameCtrl,
-              decoration: const InputDecoration(labelText: "Project Name", border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _createProject,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 20,
+            right: 20,
+            top: 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Create New Project Group", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              TextField(
+                controller: projectNameCtrl,
+                decoration: const InputDecoration(labelText: "Project Name", border: OutlineInputBorder()),
               ),
-              child: const Text("CREATE GROUP"),
-            ),
-            const SizedBox(height: 20),
-          ],
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int>(
+                initialValue: selectedSem,
+                decoration: const InputDecoration(labelText: "Semester", border: OutlineInputBorder()),
+                items: List.generate(8, (index) => index + 1)
+                    .map((sem) => DropdownMenuItem(value: sem, child: Text("Semester $sem")))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setModalState(() {
+                      selectedSem = val;
+                      selectedStudents = [];
+                      selectedLeader = null;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              const Text("Select Members:", style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 200,
+                child: StreamBuilder<List<UserModel>>(
+                  stream: _auth.getStudentsForAttendance(_internalUser!.branch ?? '', selectedSem),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    final students = snapshot.data!;
+                    if (students.isEmpty) return const Center(child: Text("No students found in this semester"));
+                    
+                    return ListView.builder(
+                      itemCount: students.length,
+                      itemBuilder: (context, index) {
+                        final student = students[index];
+                        final isSelected = selectedStudents.any((s) => s.uid == student.uid);
+                        return CheckboxListTile(
+                          title: Text(student.fullName),
+                          subtitle: Text(student.email),
+                          value: isSelected,
+                          onChanged: (val) {
+                            setModalState(() {
+                              if (val == true) {
+                                selectedStudents.add(student);
+                              } else {
+                                selectedStudents.removeWhere((s) => s.uid == student.uid);
+                                if (selectedLeader?.uid == student.uid) selectedLeader = null;
+                              }
+                            });
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              if (selectedStudents.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text("Select Leader:", style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<UserModel>(
+                  initialValue: selectedLeader,
+                  decoration: const InputDecoration(labelText: "Leader", border: OutlineInputBorder()),
+                  items: selectedStudents.map((s) => DropdownMenuItem(value: s, child: Text(s.fullName))).toList(),
+                  onChanged: (val) => setModalState(() => selectedLeader = val),
+                ),
+              ],
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () async {
+                  if (projectNameCtrl.text.isEmpty || selectedStudents.isEmpty || selectedLeader == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill all fields and select leader")));
+                    return;
+                  }
+
+                  try {
+                    final project = GroupProject(
+                      id: '',
+                      name: projectNameCtrl.text.trim(),
+                      leaderId: selectedLeader!.uid,
+                      memberIds: selectedStudents.map((s) => s.uid).toList(),
+                      teacherId: _internalUser!.uid,
+                      semester: selectedSem,
+                      branch: _internalUser!.branch ?? '',
+                      createdAt: DateTime.now(),
+                    );
+
+                    await FirebaseFirestore.instance.collection('projects').add(project.toMap());
+                    
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Group created successfully!")));
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text("CREATE PROJECT GROUP"),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -87,22 +185,18 @@ class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    if (_internalUser == null) return const Center(child: CircularProgressIndicator());
+
+    final isTeacher = _internalUser!.role == 'teacher';
 
     return Scaffold(
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('projects')
-            .where('memberIds', arrayContains: user?.uid)
-            .snapshots(),
+        stream: isTeacher 
+          ? FirebaseFirestore.instance.collection('projects').where('teacherId', isEqualTo: _internalUser!.uid).snapshots()
+          : FirebaseFirestore.instance.collection('projects').where('memberIds', arrayContains: _internalUser!.uid).snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
-          }
-          
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+          if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
           
           final projects = snapshot.data!.docs.map((doc) => 
             GroupProject.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
@@ -114,13 +208,15 @@ class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
                 children: [
                   const Icon(Icons.group_off, size: 60, color: Colors.grey),
                   const SizedBox(height: 16),
-                  const Text("No project groups yet.", style: TextStyle(color: Colors.grey)),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: _showCreateProjectSheet,
-                    icon: const Icon(Icons.group_add),
-                    label: const Text("Create a Group"),
-                  )
+                  Text(isTeacher ? "You haven't created any groups yet." : "No project groups assigned to you.", style: const TextStyle(color: Colors.grey)),
+                  if (isTeacher) ...[
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _showCreateProjectSheet,
+                      icon: const Icon(Icons.group_add),
+                      label: const Text("Create a Group"),
+                    )
+                  ]
                 ],
               ),
             );
@@ -131,7 +227,7 @@ class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
             itemCount: projects.length,
             itemBuilder: (context, index) {
               final project = projects[index];
-              final isLeader = project.leaderId == user?.uid;
+              final isLeader = project.leaderId == _internalUser?.uid;
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -143,11 +239,11 @@ class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
                     child: Icon(Icons.groups, color: Colors.white),
                   ),
                   title: Text(project.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(isLeader ? "Leader" : "Member"),
+                  subtitle: Text(isTeacher ? "Semester ${project.semester}" : (isLeader ? "Leader" : "Member")),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.push(
                     context, 
-                    MaterialPageRoute(builder: (_) => ProjectDetailsScreen(project: project))
+                    MaterialPageRoute(builder: (_) => ProjectDetailsScreen(project: project, currentUser: _internalUser!))
                   ),
                 ),
               );
@@ -155,20 +251,21 @@ class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: isTeacher ? FloatingActionButton.extended(
         onPressed: _showCreateProjectSheet,
         icon: const Icon(Icons.add),
-        label: const Text("New Project"),
+        label: const Text("New Group"),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
-      ),
+      ) : null,
     );
   }
 }
 
 class ProjectDetailsScreen extends StatefulWidget {
   final GroupProject project;
-  const ProjectDetailsScreen({super.key, required this.project});
+  final UserModel currentUser;
+  const ProjectDetailsScreen({super.key, required this.project, required this.currentUser});
 
   @override
   State<ProjectDetailsScreen> createState() => _ProjectDetailsScreenState();
@@ -274,8 +371,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                   final members = snapshot.data!.docs;
                   return DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "Assign To", border: OutlineInputBorder()),
-                    // ignore: deprecated_member_use
-                    value: _selectedMemberId,
+                    initialValue: _selectedMemberId,
                     items: members.map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
                       return DropdownMenuItem(
@@ -327,65 +423,41 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     );
   }
 
-  void _addMember() async {
-    final emailController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Add Member"),
-        content: TextField(
-          controller: emailController,
-          decoration: const InputDecoration(hintText: "Enter user email"),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          TextButton(
-            onPressed: () async {
-              if (emailController.text.isEmpty) return;
-              
-              final query = await FirebaseFirestore.instance
-                  .collection('users')
-                  .where('email', isEqualTo: emailController.text.trim())
-                  .get();
-              
-              if (query.docs.isEmpty) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User not found")));
-                return;
-              }
-
-              final newUserUid = query.docs.first.id;
-              if (widget.project.memberIds.contains(newUserUid)) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User already in group")));
-                return;
-              }
-
-              await FirebaseFirestore.instance.collection('projects').doc(widget.project.id).update({
-                'memberIds': FieldValue.arrayUnion([newUserUid])
-              });
-              
-              if (!context.mounted) return;
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Member added!")));
-            }, 
-            child: const Text("Add")
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final isLeader = widget.project.leaderId == user?.uid;
+    final isLeader = widget.project.leaderId == widget.currentUser.uid;
+    final isTeacher = widget.currentUser.role == 'teacher';
 
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.project.name),
         actions: [
-          if (isLeader) IconButton(icon: const Icon(Icons.person_add), onPressed: _addMember),
+          if (isTeacher) IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Delete Group"),
+                  content: const Text("Are you sure you want to delete this project group? All tasks will also be deleted."),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+                    TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Delete", style: TextStyle(color: Colors.red))),
+                  ],
+                ),
+              );
+              
+              if (confirm == true) {
+                await FirebaseFirestore.instance.collection('projects').doc(widget.project.id).delete();
+                // Also delete related tasks
+                final tasks = await FirebaseFirestore.instance.collection('group_tasks').where('projectId', isEqualTo: widget.project.id).get();
+                for (var doc in tasks.docs) {
+                  await doc.reference.delete();
+                }
+                if (context.mounted) Navigator.pop(context);
+              }
+            },
+          )
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -395,18 +467,8 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Text("Error: ${snapshot.error}\n\nMake sure Firestore index is created."),
-              ),
-            );
-          }
-          
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+          if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
           
           final tasks = snapshot.data!.docs.map((doc) => 
             GroupTask.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
@@ -420,7 +482,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             itemCount: tasks.length,
             itemBuilder: (context, index) {
               final task = tasks[index];
-              final isMyTask = task.assignedTo == user?.uid;
+              final isMyTask = task.assignedTo == widget.currentUser.uid;
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -428,7 +490,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 child: ListTile(
                   leading: Checkbox(
                     value: task.isDone,
-                    onChanged: (isMyTask || isLeader) ? (val) {
+                    onChanged: (isMyTask || isLeader || isTeacher) ? (val) {
                       FirebaseFirestore.instance.collection('group_tasks').doc(task.id).update({
                         'isDone': val,
                         'completedAt': val! ? Timestamp.now() : null,
@@ -451,7 +513,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                         Text("Completed: ${DateFormat('MMM d, hh:mm a').format(task.completedAt!)}", style: const TextStyle(color: Colors.green)),
                     ],
                   ),
-                  trailing: isLeader ? IconButton(
+                  trailing: (isLeader || isTeacher) ? IconButton(
                     icon: const Icon(Icons.delete_outline, color: Colors.red),
                     onPressed: () => FirebaseFirestore.instance.collection('group_tasks').doc(task.id).delete(),
                   ) : null,
@@ -461,7 +523,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
           );
         },
       ),
-      floatingActionButton: isLeader ? FloatingActionButton.extended(
+      floatingActionButton: (isLeader || isTeacher) ? FloatingActionButton.extended(
         onPressed: _showAssignTaskSheet,
         label: const Text("Assign Task"),
         icon: const Icon(Icons.add_task),

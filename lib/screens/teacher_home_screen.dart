@@ -11,6 +11,9 @@ import 'coming_soon_screen.dart';
 import 'materials_screen.dart';
 import 'attendance_screen.dart';
 import 'teacher_assignments_screen.dart';
+import 'timetable_screen.dart';
+import 'todo_works_screen.dart';
+import 'order_history_screen.dart';
 
 class TeacherHomeScreen extends StatefulWidget {
   const TeacherHomeScreen({super.key});
@@ -93,6 +96,11 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
             ),
             actions: [
               IconButton(
+                icon: const Icon(Icons.history_rounded, color: Colors.white),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen())),
+                tooltip: "Order History",
+              ),
+              IconButton(
                 icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
                 onPressed: () {},
               ),
@@ -134,14 +142,6 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                   ),
                   const Text("Here's what's happening today", style: TextStyle(color: Colors.grey)),
                   const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      _buildStatCard(context, "3", "Classes today", Icons.book_rounded),
-                      const SizedBox(width: 16),
-                      _buildStatCard(context, "42", "Submissions", Icons.assignment_turned_in_rounded),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
                   Text(
                     "Quick Management",
                     style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
@@ -173,6 +173,21 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                   },
                 ),
                 _ModernTeacherCard(
+                  title: "Timetable",
+                  icon: Icons.calendar_today_rounded,
+                  color: Colors.indigo,
+                  onTap: () {
+                    if (_currentUser?.branch != null) {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => TimetableScreen(
+                        userRole: 'teacher',
+                        userBranch: _currentUser!.branch,
+                      )));
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Branch not assigned. Contact Admin.")));
+                    }
+                  },
+                ),
+                _ModernTeacherCard(
                   title: "Assignments",
                   icon: Icons.assignment_rounded,
                   color: Colors.orange,
@@ -191,9 +206,15 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MaterialsScreen(role: 'teacher'))),
                 ),
                 _ModernTeacherCard(
-                  title: "Staff List",
+                  title: "Group Works",
                   icon: Icons.groups_rounded,
                   color: Colors.blue,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TodoWorksScreen())),
+                ),
+                _ModernTeacherCard(
+                  title: "Staff List",
+                  icon: Icons.people_outline_rounded,
+                  color: Colors.blueGrey,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TeachersListScreen())),
                 ),
                 _ModernTeacherCard(
@@ -213,28 +234,6 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 30)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(BuildContext context, String value, String label, IconData icon) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey[200]!),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: Theme.of(context).colorScheme.primary, size: 24),
-            const SizedBox(height: 12),
-            Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-          ],
-        ),
       ),
     );
   }

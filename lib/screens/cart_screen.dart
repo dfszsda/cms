@@ -1,15 +1,25 @@
 import 'package:flutter/material.dart';
-import 'coming_soon_screen.dart';
+import '../services/canteen_service.dart';
 
 class CartScreen extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
-  const CartScreen({super.key, required this.cartItems});
+  final String userName;
+  final String userRole;
+  const CartScreen({
+    super.key, 
+    required this.cartItems, 
+    required this.userName,
+    required this.userRole,
+  });
 
   @override
   State<CartScreen> createState() => _CartScreenState();
 }
 
 class _CartScreenState extends State<CartScreen> {
+  final CanteenService _canteenService = CanteenService();
+  bool _isPlacingOrder = false;
+
   double _calculateTotal() {
     double total = 0;
     for (var item in widget.cartItems) {
@@ -18,6 +28,33 @@ class _CartScreenState extends State<CartScreen> {
       total += price * item['quantity'];
     }
     return total;
+  }
+
+  Future<void> _placeOrder() async {
+    setState(() => _isPlacingOrder = true);
+    try {
+      await _canteenService.placeOrder(
+        items: List<Map<String, dynamic>>.from(widget.cartItems),
+        totalAmount: _calculateTotal(),
+        userName: widget.userName,
+        userRole: widget.userRole,
+      );
+      if (mounted) {
+        widget.cartItems.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Order placed successfully!")),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error placing order: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPlacingOrder = false);
+    }
   }
 
   @override
@@ -128,21 +165,16 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ComingSoonScreen(title: "Payment"),
-                            ),
-                          );
-                        },
+                        onPressed: _isPlacingOrder ? null : _placeOrder,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
                           minimumSize: const Size.fromHeight(55),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         ),
-                        child: const Text("PROCEED TO CHECKOUT", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: _isPlacingOrder 
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text("PLACE ORDER", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
