@@ -60,6 +60,9 @@ class GroupProject {
   final String name;
   final String leaderId;
   final List<String> memberIds;
+  final String teacherId;
+  final int semester;
+  final String branch;
   final DateTime createdAt;
 
   GroupProject({
@@ -67,6 +70,9 @@ class GroupProject {
     required this.name,
     required this.leaderId,
     required this.memberIds,
+    required this.teacherId,
+    required this.semester,
+    required this.branch,
     required this.createdAt,
   });
 
@@ -76,6 +82,9 @@ class GroupProject {
       name: data['name'] ?? '',
       leaderId: data['leaderId'] ?? '',
       memberIds: List<String>.from(data['memberIds'] ?? []),
+      teacherId: data['teacherId'] ?? '',
+      semester: data['semester'] ?? 1,
+      branch: data['branch'] ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
   }
@@ -85,6 +94,9 @@ class GroupProject {
       'name': name,
       'leaderId': leaderId,
       'memberIds': memberIds,
+      'teacherId': teacherId,
+      'semester': semester,
+      'branch': branch,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
