@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
+import '../models/leave_model.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final String? teacherBranch; // Nullable to detect student vs teacher
@@ -336,173 +337,216 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             return StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('working_saturdays').snapshots(),
               builder: (context, workingSatSnap) {
-                if (attendanceSnap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                
-                final attendanceDocs = attendanceSnap.data?.docs ?? [];
-                final holidayDocs = holidaySnap.data?.docs ?? [];
-                final workingSatDocs = workingSatSnap.data?.docs ?? [];
-                
-                Map<DateTime, String> statusMap = {};
-                Map<DateTime, String> holidayTitles = {};
-                Set<DateTime> workingSaturdays = {};
-                int presentClasses = 0;
-                int totalClasses = 0;
+                return StreamBuilder<List<LeaveModel>>(
+                  stream: _auth.getStudentLeaves(widget.student!.uid),
+                  builder: (context, leaveSnap) {
+                    if (attendanceSnap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                    
+                    final attendanceDocs = attendanceSnap.data?.docs ?? [];
+                    final holidayDocs = holidaySnap.data?.docs ?? [];
+                    final workingSatDocs = workingSatSnap.data?.docs ?? [];
+                    final leaveDocs = leaveSnap.data ?? [];
+                    
+                    Map<DateTime, String> statusMap = {};
+                    Map<DateTime, String> holidayTitles = {};
+                    Set<DateTime> workingSaturdays = {};
+                    int presentClasses = 0;
+                    int totalClasses = 0;
 
-                // Process Working Saturdays (Exceptions)
-                for (var doc in workingSatDocs) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final date = (data['date'] as Timestamp).toDate();
-                  final day = DateTime(date.year, date.month, date.day);
-                  workingSaturdays.add(day);
-                  holidayTitles[day] = "Working Saturday: ${data['title']}";
-                }
+                    // 1. Process Working Saturdays (Exceptions)
+                    for (var doc in workingSatDocs) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final date = (data['date'] as Timestamp).toDate();
+                      final day = DateTime(date.year, date.month, date.day);
+                      workingSaturdays.add(day);
+                      holidayTitles[day] = "Working Saturday: ${data['title']}";
+                    }
 
-                // Process Attendance
-                for (var doc in attendanceDocs) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final date = (data['date'] as Timestamp).toDate();
-                  final day = DateTime(date.year, date.month, date.day);
-                  final presentList = List<String>.from(data['presentStudents'] ?? []);
-                  final absentList = List<String>.from(data['absentStudents'] ?? []);
-                  
-                  if (presentList.contains(widget.student!.uid)) {
-                    statusMap[day] = 'present';
-                    presentClasses++;
-                    totalClasses++;
-                  } else if (absentList.contains(widget.student!.uid)) {
-                    statusMap[day] = 'absent';
-                    totalClasses++;
-                  }
-                }
+                    // 2. Process Approved Leaves
+                    Set<DateTime> leaveDates = {};
+                    for (var leave in leaveDocs) {
+                      if (leave.status == 'approved') {
+                        DateTime current = DateTime(leave.startDate.year, leave.startDate.month, leave.startDate.day);
+                        DateTime end = DateTime(leave.endDate.year, leave.endDate.month, leave.endDate.day);
+                        while (current.isBefore(end) || current.isAtSameMomentAs(end)) {
+                          leaveDates.add(current);
+                          current = current.add(const Duration(days: 1));
+                        }
+                      }
+                    }
 
-                // Process Holidays
-                for (var doc in holidayDocs) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final date = (data['date'] as Timestamp).toDate();
-                  final day = DateTime(date.year, date.month, date.day);
-                  statusMap[day] = 'holiday';
-                  holidayTitles[day] = data['title'] ?? 'Holiday';
-                }
+                    // 3. Process Holidays (Manual)
+                    Set<DateTime> manualHolidayDates = {};
+                    for (var doc in holidayDocs) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final date = (data['date'] as Timestamp).toDate();
+                      final day = DateTime(date.year, date.month, date.day);
+                      statusMap[day] = 'holiday';
+                      holidayTitles[day] = data['title'] ?? 'Holiday';
+                      manualHolidayDates.add(day);
+                    }
 
-                double percentage = totalClasses == 0 ? 0 : (presentClasses / totalClasses) * 100;
+                    // 4. Process Attendance
+                    for (var doc in attendanceDocs) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final date = (data['date'] as Timestamp).toDate();
+                      final day = DateTime(date.year, date.month, date.day);
+                      
+                      // Skip manual holidays in total attendance calculation per user request
+                      if (manualHolidayDates.contains(day)) continue;
 
-                return SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      // Summary Section
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: const BoxDecoration(
-                          color: Colors.indigo,
-                          borderRadius: BorderRadius.only(
-                            bottomLeft: Radius.circular(30),
-                            bottomRight: Radius.circular(30),
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              "${percentage.toStringAsFixed(1)}%",
-                              style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold),
+                      final presentList = List<String>.from(data['presentStudents'] ?? []);
+                      final absentList = List<String>.from(data['absentStudents'] ?? []);
+                      
+                      if (presentList.contains(widget.student!.uid)) {
+                        statusMap[day] = 'present';
+                        presentClasses++;
+                        totalClasses++;
+                      } else {
+                        // Count as absent if in absent list OR if student is on approved leave (gher hajar)
+                        if (absentList.contains(widget.student!.uid) || leaveDates.contains(day)) {
+                          statusMap[day] = 'absent';
+                          totalClasses++;
+                        }
+                      }
+                    }
+
+                    // 5. Final pass for Calendar Display: show Leave color for approved leaves
+                    // We do this last so 'leave' status overrides 'absent'/'present' for the calendar view
+                    for (var day in leaveDates) {
+                      statusMap[day] = 'leave';
+                    }
+
+                    double percentage = totalClasses == 0 ? 0 : (presentClasses / totalClasses) * 100;
+
+                    return SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          // Summary Section
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: const BoxDecoration(
+                              color: Colors.indigo,
+                              borderRadius: BorderRadius.only(
+                                bottomLeft: Radius.circular(30),
+                                bottomRight: Radius.circular(30),
+                              ),
                             ),
-                            const Text("Attendance Percentage", style: TextStyle(color: Colors.white70)),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            child: Column(
                               children: [
-                                _buildSummaryStat("Total", totalClasses.toString()),
-                                _buildSummaryStat("Present", presentClasses.toString()),
-                                _buildSummaryStat("Absent", (totalClasses - presentClasses).toString()),
+                                Text(
+                                  "${percentage.toStringAsFixed(1)}%",
+                                  style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold),
+                                ),
+                                const Text("Attendance Percentage", style: TextStyle(color: Colors.white70)),
+                                const SizedBox(height: 20),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: [
+                                    _buildSummaryStat("Total", totalClasses.toString()),
+                                    _buildSummaryStat("Present", presentClasses.toString()),
+                                    _buildSummaryStat("Absent", (totalClasses - presentClasses).toString()),
+                                  ],
+                                ),
                               ],
                             ),
-                          ],
-                        ),
-                      ),
-
-                      // Calendar Section
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                          child: Column(
-                            children: [
-                              TableCalendar(
-                                firstDay: DateTime.utc(2020, 1, 1),
-                                lastDay: DateTime.now().add(const Duration(days: 365)),
-                                focusedDay: _focusedDay,
-                                calendarFormat: _calendarFormat,
-                                selectedDayPredicate: (day) => isSameDay(_selectedCalendarDay, day),
-                                onDaySelected: (selectedDay, focusedDay) {
-                                  setState(() {
-                                    _selectedCalendarDay = selectedDay;
-                                    _focusedDay = focusedDay;
-                                  });
-                                },
-                                onFormatChanged: (format) {
-                                  setState(() {
-                                    _calendarFormat = format;
-                                  });
-                                },
-                                calendarBuilders: CalendarBuilders(
-                                  defaultBuilder: (context, day, focusedDay) {
-                                    final dateOnly = DateTime(day.year, day.month, day.day);
-                                    final status = statusMap[dateOnly];
-                                    
-                                    // Default Holiday Rules
-                                    bool isDefaultHoliday = day.weekday == DateTime.sunday || day.weekday == DateTime.saturday;
-                                    
-                                    // Exception: Working Saturday
-                                    if (day.weekday == DateTime.saturday && workingSaturdays.contains(dateOnly)) {
-                                      isDefaultHoliday = false;
-                                    }
-
-                                    if (isDefaultHoliday) {
-                                      return _buildCalendarDay(day, Colors.orange);
-                                    }
-                                    
-                                    if (status == 'present') {
-                                      return _buildCalendarDay(day, Colors.green);
-                                    } else if (status == 'absent') {
-                                      return _buildCalendarDay(day, Colors.red);
-                                    } else if (status == 'holiday') {
-                                      return _buildCalendarDay(day, Colors.orange);
-                                    }
-                                    return null;
-                                  },
-                                  todayBuilder: (context, day, focusedDay) {
-                                    return _buildCalendarDay(day, Colors.blue, isToday: true);
-                                  },
-                                ),
-                                headerStyle: const HeaderStyle(
-                                  formatButtonVisible: false,
-                                  titleCentered: true,
-                                  titleTextStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                ),
-                              ),
-                              if (_selectedCalendarDay != null) _buildSelectedDayInfo(statusMap, holidayTitles, workingSaturdays),
-                            ],
                           ),
-                        ),
-                      ),
 
-                      // Legend
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 15,
-                          children: [
-                            _buildLegendItem(Colors.green, "Present"),
-                            _buildLegendItem(Colors.red, "Absent"),
-                            _buildLegendItem(Colors.orange, "Holiday/Sat/Sun"),
-                          ],
-                        ),
+                          // Calendar Section
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Card(
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                              child: Column(
+                                children: [
+                                  TableCalendar(
+                                    firstDay: DateTime.utc(2020, 1, 1),
+                                    lastDay: DateTime.now().add(const Duration(days: 365)),
+                                    focusedDay: _focusedDay,
+                                    calendarFormat: _calendarFormat,
+                                    selectedDayPredicate: (day) => isSameDay(_selectedCalendarDay, day),
+                                    onDaySelected: (selectedDay, focusedDay) {
+                                      setState(() {
+                                        _selectedCalendarDay = selectedDay;
+                                        _focusedDay = focusedDay;
+                                      });
+                                    },
+                                    onFormatChanged: (format) {
+                                      setState(() {
+                                        _calendarFormat = format;
+                                      });
+                                    },
+                                    calendarBuilders: CalendarBuilders(
+                                      defaultBuilder: (context, day, focusedDay) {
+                                        final dateOnly = DateTime(day.year, day.month, day.day);
+                                        final status = statusMap[dateOnly];
+                                        
+                                        // Default Holiday Rules
+                                        bool isDefaultHoliday = day.weekday == DateTime.sunday || day.weekday == DateTime.saturday;
+                                        
+                                        // Exception: Working Saturday
+                                        if (day.weekday == DateTime.saturday && workingSaturdays.contains(dateOnly)) {
+                                          isDefaultHoliday = false;
+                                        }
+
+                                        if (status == 'leave') {
+                                          return _buildCalendarDay(day, Colors.deepPurple);
+                                        }
+
+                                        if (isDefaultHoliday) {
+                                          return _buildCalendarDay(day, Colors.orange);
+                                        }
+                                        
+                                        if (status == 'present') {
+                                          return _buildCalendarDay(day, Colors.green);
+                                        } else if (status == 'absent') {
+                                          return _buildCalendarDay(day, Colors.red);
+                                        } else if (status == 'holiday') {
+                                          return _buildCalendarDay(day, Colors.orange);
+                                        }
+                                        return null;
+                                      },
+                                      todayBuilder: (context, day, focusedDay) {
+                                        final dateOnly = DateTime(day.year, day.month, day.day);
+                                        if (statusMap[dateOnly] == 'leave') {
+                                          return _buildCalendarDay(day, Colors.deepPurple, isToday: true);
+                                        }
+                                        return _buildCalendarDay(day, Colors.blue, isToday: true);
+                                      },
+                                    ),
+                                    headerStyle: const HeaderStyle(
+                                      formatButtonVisible: false,
+                                      titleCentered: true,
+                                      titleTextStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                                    ),
+                                  ),
+                                  if (_selectedCalendarDay != null) _buildSelectedDayInfo(statusMap, holidayTitles, workingSaturdays),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          // Legend
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 15,
+                              children: [
+                                _buildLegendItem(Colors.green, "Present"),
+                                _buildLegendItem(Colors.red, "Absent"),
+                                _buildLegendItem(Colors.orange, "Holiday/Sat/Sun"),
+                                _buildLegendItem(Colors.deepPurple, "On Leave"),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
                       ),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
+                    );
+                  },
                 );
               },
             );
@@ -516,7 +560,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final day = DateTime(_selectedCalendarDay!.year, _selectedCalendarDay!.month, _selectedCalendarDay!.day);
     String? title;
 
-    if (workingSaturdays.contains(day)) {
+    if (statusMap[day] == 'leave') {
+      title = "On Approved Leave";
+    } else if (workingSaturdays.contains(day)) {
       title = holidayTitles[day] ?? "Working Saturday";
     } else if (day.weekday == DateTime.sunday) {
       title = "Weekly Holiday (Sunday)";
@@ -528,11 +574,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     if (title != null) {
       bool isWorking = workingSaturdays.contains(day);
+      bool isLeave = statusMap[day] == 'leave';
       return Padding(
         padding: const EdgeInsets.all(16.0),
         child: Text(
-          isWorking ? "Notice: $title" : "Holiday: $title",
-          style: TextStyle(fontWeight: FontWeight.bold, color: isWorking ? Colors.blue : Colors.orange),
+          isLeave ? title : (isWorking ? "Notice: $title" : "Holiday: $title"),
+          style: TextStyle(fontWeight: FontWeight.bold, color: isLeave ? Colors.deepPurple : (isWorking ? Colors.blue : Colors.orange)),
           textAlign: TextAlign.center,
         ),
       );

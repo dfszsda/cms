@@ -14,6 +14,8 @@ import 'teacher_assignments_screen.dart';
 import 'timetable_screen.dart';
 import 'todo_works_screen.dart';
 import 'order_history_screen.dart';
+import 'coordinator_leave_screen.dart';
+import 'student_directory_screen.dart';
 
 class TeacherHomeScreen extends StatefulWidget {
   const TeacherHomeScreen({super.key});
@@ -26,6 +28,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   final _auth = AuthService();
   UserModel? _currentUser;
   bool _isLoading = true;
+  bool _isCoordinator = false;
 
   @override
   void initState() {
@@ -38,10 +41,22 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     if (user != null) {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       if (doc.exists) {
-        setState(() {
-          _currentUser = UserModel.fromMap(doc.data()!, user.uid);
-          _isLoading = false;
-        });
+        final userData = UserModel.fromMap(doc.data()!, user.uid);
+        
+        // Check if teacher is a coordinator
+        final batchSnap = await FirebaseFirestore.instance
+            .collection('batches')
+            .where('coordinatorId', isEqualTo: user.uid)
+            .limit(1)
+            .get();
+
+        if (mounted) {
+          setState(() {
+            _currentUser = userData;
+            _isCoordinator = batchSnap.docs.isNotEmpty;
+            _isLoading = false;
+          });
+        }
       }
     }
   }
@@ -172,6 +187,19 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                     }
                   },
                 ),
+                if (_isCoordinator)
+                  _ModernTeacherCard(
+                    title: "Leave Requests",
+                    icon: Icons.assignment_turned_in_rounded,
+                    color: Colors.deepPurple,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CoordinatorLeaveScreen(coordinator: _currentUser!))),
+                  ),
+                _ModernTeacherCard(
+                  title: "Student Directory",
+                  icon: Icons.contact_page_rounded,
+                  color: Colors.teal,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentDirectoryScreen(viewer: _currentUser!))),
+                ),
                 _ModernTeacherCard(
                   title: "Timetable",
                   icon: Icons.calendar_today_rounded,
@@ -274,7 +302,7 @@ class _ModernTeacherCard extends StatelessWidget {
               child: Icon(icon, color: color, size: 32),
             ),
             const SizedBox(height: 12),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center),
           ],
         ),
       ),

@@ -29,13 +29,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   String _selectedRole = 'student';
   String? _selectedBranchId;
   String? _selectedBatchName;
+  String? _selectedCoordinatorId;
   int _selectedSemester = 1;
   bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 6,
+      length: 7,
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Admin Dashboard"),
@@ -68,6 +69,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               Tab(icon: Icon(Icons.person_add), text: "Add User"),
               Tab(icon: Icon(Icons.account_tree_rounded), text: "Branches"),
               Tab(icon: Icon(Icons.grid_view_rounded), text: "Batches"),
+              Tab(icon: Icon(Icons.warning_amber_rounded), text: "Unassigned"),
               Tab(icon: Icon(Icons.book), text: "Subjects"),
               Tab(icon: Icon(Icons.list), text: "Users"),
               Tab(icon: Icon(Icons.notifications), text: "Requests"),
@@ -79,6 +81,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             _buildAddUserTab(),
             _buildBranchesTab(),
             _buildBatchesTab(),
+            _buildUnassignedBatchesTab(),
             _buildSubjectsTab(),
             _buildViewUsersTab(),
             _buildRequestsTab(),
@@ -141,7 +144,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 return DropdownButtonFormField<String>(
                   value: _selectedBatchName,
                   decoration: const InputDecoration(labelText: "Select Batch", border: OutlineInputBorder()),
-                  items: batches.map((doc) => DropdownMenuItem(value: doc['fullName'].toString(), child: Text(doc['fullName']))).toList(),
+                  items: batches.map((doc) => DropdownMenuItem(value: (doc.data() as Map<String, dynamic>)['fullName'].toString(), child: Text((doc.data() as Map<String, dynamic>)['fullName'] ?? ''))).toList(),
                   onChanged: (val) => setState(() => _selectedBatchName = val),
                 );
               },
@@ -259,12 +262,29 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   TextField(controller: _batchLetterCtrl, decoration: const InputDecoration(labelText: "Batch Letter (A, B, C, D)")),
                   TextField(controller: _batchYearCtrl, decoration: const InputDecoration(labelText: "Year")),
                   const SizedBox(height: 10),
+                  StreamBuilder<List<UserModel>>(
+                    stream: _auth.getTeachers(),
+                    builder: (context, snap) {
+                      if (!snap.hasData) return const LinearProgressIndicator();
+                      return DropdownButtonFormField<String>(
+                        hint: const Text("Select Coordinator (Optional)"),
+                        items: snap.data!.map((teacher) => DropdownMenuItem(value: teacher.uid, child: Text(teacher.fullName))).toList(),
+                        onChanged: (val) => _selectedCoordinatorId = val,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 10),
                   ElevatedButton(
                     onPressed: () async {
                       final messenger = ScaffoldMessenger.of(context);
                       if (_selectedBranchId == null || _batchLetterCtrl.text.isEmpty) return;
                       try {
-                        await _auth.createBatch(_selectedBranchId!, _batchLetterCtrl.text.toUpperCase(), int.parse(_batchYearCtrl.text));
+                        await _auth.createBatch(
+                          _selectedBranchId!, 
+                          _batchLetterCtrl.text.toUpperCase(), 
+                          int.parse(_batchYearCtrl.text),
+                          coordinatorId: _selectedCoordinatorId,
+                        );
                         messenger.showSnackBar(const SnackBar(content: Text("Batch Created!")));
                       } catch (e) {
                         messenger.showSnackBar(SnackBar(content: Text(e.toString())));
@@ -277,6 +297,82 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ),
           ),
           const Expanded(child: _BatchListDisplay()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUnassignedBatchesTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('batches').snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        
+        // Filter: coordinatorId is null OR doesn't exist (handles old batches)
+        final batches = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return !data.containsKey('coordinatorId') || data['coordinatorId'] == null;
+        }).toList();
+
+        if (batches.isEmpty) return const Center(child: Text("No unassigned batches."));
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: batches.length,
+          itemBuilder: (context, index) {
+            final batch = batches[index];
+            final data = batch.data() as Map<String, dynamic>;
+            return Card(
+              child: ListTile(
+                title: Text(data['fullName'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text("Branch: ${data['branchId'] ?? 'N/A'}"),
+                trailing: ElevatedButton(
+                  onPressed: () => _showAssignCoordinatorDialog(batch.id, data['fullName'] ?? 'N/A'),
+                  child: const Text("Assign"),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAssignCoordinatorDialog(String batchId, String batchName) {
+    UserModel? selectedTeacher;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Assign Coordinator for $batchName"),
+        content: StreamBuilder<List<UserModel>>(
+          stream: _auth.getTeachers(),
+          builder: (context, snap) {
+            if (!snap.hasData) return const CircularProgressIndicator();
+            return DropdownButtonFormField<UserModel>(
+              hint: const Text("Select Teacher"),
+              items: snap.data!.map((teacher) => DropdownMenuItem(value: teacher, child: Text(teacher.fullName))).toList(),
+              onChanged: (val) => selectedTeacher = val,
+            );
+          },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              if (selectedTeacher != null) {
+                final messenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(ctx);
+                try {
+                  await _auth.assignCoordinator(batchId, selectedTeacher!.uid);
+                  if (ctx.mounted) navigator.pop();
+                  messenger.showSnackBar(const SnackBar(content: Text("Coordinator Assigned!")));
+                } catch (e) {
+                  messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+                }
+              }
+            },
+            child: const Text("Assign"),
+          )
         ],
       ),
     );
@@ -445,10 +541,11 @@ class _BranchList extends StatelessWidget {
           itemCount: snap.data!.docs.length,
           itemBuilder: (context, i) {
             var doc = snap.data!.docs[i];
+            var data = doc.data() as Map<String, dynamic>;
             return ListTile(
               title: Text(doc.id, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text(doc['name']),
-              trailing: Text("Batches: ${doc['batchCount']}/4"),
+              subtitle: Text(data['name'] ?? 'N/A'),
+              trailing: Text("Batches: ${data['batchCount'] ?? 0}/4"),
             );
           },
         );
@@ -469,9 +566,23 @@ class _BatchListDisplay extends StatelessWidget {
           itemCount: snap.data!.docs.length,
           itemBuilder: (context, i) {
             var doc = snap.data!.docs[i];
-            return ListTile(
-              title: Text(doc['fullName'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
-              subtitle: Text("Branch: ${doc['branchId']} | Year: ${doc['year']}"),
+            var data = doc.data() as Map<String, dynamic>;
+            String? coordId = data.containsKey('coordinatorId') ? data['coordinatorId'] : null;
+
+            return FutureBuilder<DocumentSnapshot>(
+              future: coordId != null ? FirebaseFirestore.instance.collection('users').doc(coordId).get() : null,
+              builder: (context, userSnap) {
+                String coordName = coordId == null ? "No Coordinator" : (userSnap.hasData ? ((userSnap.data!.data() as Map<String, dynamic>?)?['fullName'] ?? "Deleted User") : "Loading...");
+                return ListTile(
+                  title: Text(data['fullName'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                  subtitle: Text("Branch: ${data['branchId']} | Year: ${data['year']} | Coordinator: $coordName"),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.person_off, color: Colors.red, size: 20),
+                    onPressed: coordId == null ? null : () => AuthService().removeCoordinator(doc.id),
+                    tooltip: "Remove Coordinator",
+                  ),
+                );
+              },
             );
           },
         );
@@ -492,9 +603,10 @@ class _SubjectListDisplay extends StatelessWidget {
           itemCount: snap.data!.docs.length,
           itemBuilder: (context, i) {
             var doc = snap.data!.docs[i];
+            var data = doc.data() as Map<String, dynamic>;
             return ListTile(
-              title: Text(doc['name'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
-              subtitle: Text("Branch: ${doc['branch']} | Sem: ${doc['semester']}"),
+              title: Text(data['name'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+              subtitle: Text("Branch: ${data['branch']} | Sem: ${data['semester']}"),
               trailing: IconButton(
                 icon: const Icon(Icons.delete, color: Colors.red),
                 onPressed: () => doc.reference.delete(),

@@ -89,7 +89,11 @@ class _StudentsSectionScreenState extends State<StudentsSectionScreen> {
                         title: "Student List",
                         icon: Icons.people_alt_rounded,
                         color: Colors.blue,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentsListScreen())),
+                        onTap: () {
+                          if (widget.user != null) {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => StudentsListScreen(viewer: widget.user!)));
+                          }
+                        },
                       ),
                       _ModernSectionCard(
                         title: "Materials",
