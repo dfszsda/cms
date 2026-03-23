@@ -94,12 +94,11 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
                                 children: [
                                   ElevatedButton(
                                     onPressed: () async {
+                                      final messenger = ScaffoldMessenger.of(context);
                                       await _canteenService.markOrderAsDelivered(order.id);
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text("Order marked as delivered")),
-                                        );
-                                      }
+                                      messenger.showSnackBar(
+                                        const SnackBar(content: Text("Order marked as delivered")),
+                                      );
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.green,
@@ -137,17 +136,19 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
   void _showCancelDialog(BuildContext context, String docId) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text("Cancel Order"),
         content: const Text("Are you sure you want to cancel this order?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("No")),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text("No")),
           TextButton(
             onPressed: () async {
+              final navigator = Navigator.of(dialogCtx);
+              final messenger = ScaffoldMessenger.of(context);
               await _canteenService.cancelOrder(docId);
               if (mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+                navigator.pop();
+                messenger.showSnackBar(
                   const SnackBar(content: Text("Order cancelled successfully")),
                 );
               }

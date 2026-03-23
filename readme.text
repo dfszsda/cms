@@ -1,36 +1,88 @@
-lib/
-├── main.dart
-├── models/
-│   ├── canteen_model.dart
-│   ├── todo_model.dart
-│   ├── library_model.dart
-│   └── user_model.dart
-├── services/
-│   ├── canteen_service.dart
-│   ├── drive_service.dart
-│   └── auth_service.dart
-├── screens/
-│   ├── login_screen.dart
-│   ├── signup_screen.dart
-│   ├── change_password_screen.dart
-│   ├── profile_screen.dart
-│   ├── student_home_screen.dart
-│   ├── teacher_home_screen.dart
-│   ├── teachers_list_screen.dart
-│   ├── students_list_screen.dart
-│   ├── students_section_screen.dart
-│   ├── canteen_screen.dart
-│   ├── college_info_screen.dart
-│   ├── cart_screen.dart
-│   ├── checkout_screen.dart
-│   ├── library_screen.dart
-│   ├── admin_home_screen.dart
-│   ├── todo_works_screen.dart
-│   ├── group_projects_screen.dart
-│   ├── materials_screen.dart
-│   ├── profile_settings_screen.dart
-│   ├── attendance_screen.dart
-│   ├── teacher_assignments_screen.dart
-│   └── coming_soon_screen.dart
-├── raw/
-│   └── logo.png
+# College Management System (CMS)
+
+A comprehensive Flutter application designed to streamline college operations, providing specialized interfaces for students, teachers, administrators, and retailers.
+
+## 📂 Project Structure (Full Map)
+```text
+cms/
+├── .github/                # GitHub Actions and workflows
+├── android/                # Android native configurations
+├── ios/                    # iOS native configurations
+├── web/                    # Web platform support
+├── windows/                # Windows desktop support
+├── linux/                  # Linux desktop support
+├── macos/                  # macOS desktop support
+├── test/                   # Unit and widget tests
+├── lib/                    # Core application logic
+│   ├── main.dart           # Application entry point
+│   ├── models/             # Data models
+│   │   ├── leave_model.dart
+│   │   ├── todo_model.dart
+│   │   └── user_model.dart
+│   ├── services/           # Backend & API services
+│   │   ├── auth_service.dart
+│   │   ├── canteen_service.dart
+│   │   └── drive_service.dart
+│   ├── screens/            # UI Screens
+│   │   ├── admin_home_screen.dart
+│   │   ├── assignment_submission_screen.dart
+│   │   ├── attendance_screen.dart
+│   │   ├── canteen_screen.dart
+│   │   ├── cart_screen.dart
+│   │   ├── change_password_screen.dart
+│   │   ├── college_info_screen.dart
+│   │   ├── coming_soon_screen.dart
+│   │   ├── coordinator_leave_screen.dart
+│   │   ├── events_screen.dart
+│   │   ├── group_projects_screen.dart
+│   │   ├── holiday_screen.dart
+│   │   ├── library_screen.dart
+│   │   ├── login_screen.dart
+│   │   ├── maintenance_screen.dart
+│   │   ├── materials_screen.dart
+│   │   ├── order_history_screen.dart
+│   │   ├── order_management_screen.dart
+│   │   ├── profile_screen.dart
+│   │   ├── retailer_home_screen.dart
+│   │   ├── semester_management_screen.dart
+│   │   ├── signup_screen.dart
+│   │   ├── student_detail_screen.dart
+│   │   ├── student_directory_screen.dart
+│   │   ├── student_home_screen.dart
+│   │   ├── student_leave_screen.dart
+│   │   ├── students_list_screen.dart
+│   │   ├── students_section_screen.dart
+│   │   ├── teacher_assignments_screen.dart
+│   │   ├── teacher_home_screen.dart
+│   │   ├── teachers_list_screen.dart
+│   │   ├── timetable_screen.dart
+│   │   └── todo_works_screen.dart
+│   └── raw/                # Assets/Resources
+│       └── logo.png
+├── analysis_options.yaml   # Dart linter rules
+├── pubspec.yaml            # Project dependencies & assets
+├── project_report.txt      # Project documentation/report
+└── README.md               # Project overview (Markdown)
+```
+
+## 🛠 Tech Stack
+- **Framework:** Flutter (SDK ^3.11.0)
+- **Backend:** Firebase (Core, Auth, Firestore)
+- **APIs:** Google Drive API, Google Auth
+- **Storage:** Shared Preferences
+- **UI Components:** Google Fonts, Table Calendar, Cupertino Icons
+
+## ✨ Key Features
+- **Role-Based Access:** Distinct dashboards for Students, Teachers, Admins, and Retailers.
+- **Authentication:** Secure Login, Signup, and Password Management via Firebase.
+- **Academic Tools:** Manage Timetables, Attendance, Assignments, and Semester details.
+- **Canteen Management:** Digital menu browsing, cart system, and order history.
+- **Leave System:** Student leave application and Coordinator approval workflow.
+- **Resource Sharing:** Access to study materials and library resources.
+- **Communication:** Updates on College Events and Holiday schedules.
+
+## 🚀 Getting Started
+1. **Prerequisites:** Install Flutter and Dart SDK.
+2. **Installation:** Run `flutter pub get` in the root directory.
+3. **Configuration:** Set up Firebase projects and add configuration files.
+4. **Execution:** Launch the app using `flutter run`.

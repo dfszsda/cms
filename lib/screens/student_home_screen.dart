@@ -12,6 +12,7 @@ import 'canteen_screen.dart';
 import 'college_info_screen.dart';
 import 'attendance_screen.dart';
 import 'order_history_screen.dart';
+import 'student_leave_screen.dart';
 
 class StudentHomeScreen extends StatelessWidget {
   const StudentHomeScreen({super.key});
@@ -201,6 +202,12 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
                   icon: Icons.calendar_month_rounded,
                   color: Colors.green,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(student: _currentUser))),
+                ),
+                _ModernHomeCard(
+                  title: "Leave Request",
+                  icon: Icons.exit_to_app_rounded,
+                  color: Colors.purple,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentLeaveScreen(student: _currentUser!))),
                 ),
                 _ModernHomeCard(
                   title: "Teachers",

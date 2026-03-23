@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_final_fields
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/canteen_service.dart';
@@ -70,7 +72,7 @@ class _CanteenScreenState extends State<CanteenScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogCtx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(itemId == null ? "Add Item" : "Edit Item"),
           content: SingleChildScrollView(
@@ -89,9 +91,10 @@ class _CanteenScreenState extends State<CanteenScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+            TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text("Cancel")),
             ElevatedButton(
               onPressed: () async {
+                final navigator = Navigator.of(dialogCtx);
                 final data = {
                   'name': nameCtrl.text,
                   'price': '₹${priceCtrl.text}',
@@ -102,7 +105,7 @@ class _CanteenScreenState extends State<CanteenScreen> {
                 } else {
                   await _canteenService.updateCanteenItem(itemId, data);
                 }
-                if (mounted) Navigator.pop(context);
+                if (mounted) navigator.pop();
               },
               child: const Text("Save"),
             ),
