@@ -6,6 +6,8 @@ import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import 'login_screen.dart';
 import 'holiday_screen.dart';
+import 'admin_exam_form_screen.dart';
+import 'admin_exam_timetable_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -36,7 +38,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 7,
+      length: 8,
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Admin Dashboard"),
@@ -71,6 +73,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               Tab(icon: Icon(Icons.grid_view_rounded), text: "Batches"),
               Tab(icon: Icon(Icons.warning_amber_rounded), text: "Unassigned"),
               Tab(icon: Icon(Icons.book), text: "Subjects"),
+              Tab(icon: Icon(Icons.assignment_ind_rounded), text: "Examination"),
               Tab(icon: Icon(Icons.list), text: "Users"),
               Tab(icon: Icon(Icons.notifications), text: "Requests"),
             ],
@@ -83,8 +86,65 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             _buildBatchesTab(),
             _buildUnassignedBatchesTab(),
             _buildSubjectsTab(),
+            _buildExaminationTab(),
             _buildViewUsersTab(),
             _buildRequestsTab(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- NEW EXAMINATION TAB ---
+  Widget _buildExaminationTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          const Text("Examination Management", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: 1.2,
+            children: [
+              _buildAdminExamCard(Icons.report_problem_outlined, "UFM Cases", Colors.red),
+              _buildAdminExamCard(
+                Icons.calendar_today_outlined, 
+                "Set Timetable", 
+                Colors.blue, 
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminExamTimetableScreen()))
+              ),
+              _buildAdminExamCard(Icons.upload_file_rounded, "Upload Hall Tickets", Colors.green),
+              _buildAdminExamCard(Icons.description_outlined, "Exam Forms", Colors.orange, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminExamFormScreen()))),
+              _buildAdminExamCard(Icons.payments_outlined, "Set Exam Fee", Colors.purple),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminExamCard(IconData icon, String title, Color color, {VoidCallback? onTap}) {
+    String subText = "Coming Soon";
+    if (title == "Exam Forms") subText = "View Forms";
+    if (title == "Set Timetable") subText = "Manage Timetable";
+
+    return InkWell(
+      onTap: onTap,
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 40),
+            const SizedBox(height: 10),
+            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(subText, style: TextStyle(fontSize: 10, color: onTap == null ? Colors.grey : Colors.indigo)),
           ],
         ),
       ),

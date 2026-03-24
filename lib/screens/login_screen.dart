@@ -77,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
               context,
               MaterialPageRoute(builder: (_) => const StudentHomeScreen()),
             );
-          } else if (user.role == 'teacher') {
+          } else if (user.role == 'teacher' || user.role == 'coordinator') {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const TeacherHomeScreen()),

@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../models/leave_model.dart';
+import '../models/exam_form_model.dart';
+import '../models/exam_timetable_model.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -115,15 +117,21 @@ class AuthService {
     return _firestore.runTransaction((transaction) async {
       DocumentSnapshot branchSnap = await transaction.get(branchRef);
       if (!branchSnap.exists) throw "Branch does not exist";
+      
       int currentCount = branchSnap.get('batchCount') ?? 0;
-      if (currentCount >= 4) throw "Maximum 4 batches allowed per branch";
+      if (currentCount >= 20) throw "Maximum 20 batches (5 classes) allowed per branch";
+      
       int nextBatchNum = currentCount + 1;
-      String fullName = "$nextBatchNum$branchId-$batchLetter-$year";
+      int classNum = (currentCount / 4).floor() + 1;
+      
+      String fullName = "1$branchId$classNum-${batchLetter.toUpperCase()}-$year";
+      
       transaction.set(_firestore.collection('batches').doc(), {
         'branchId': branchId,
-        'batchLetter': batchLetter,
+        'batchLetter': batchLetter.toUpperCase(),
         'fullName': fullName,
         'year': year,
+        'classNum': classNum,
         'studentCount': 0,
         'coordinatorId': coordinatorId,
         'createdAt': FieldValue.serverTimestamp(),
@@ -133,18 +141,38 @@ class AuthService {
   }
 
   Future<void> assignCoordinator(String batchId, String teacherId) async {
-    // Check if teacher already has 2 batches
-    QuerySnapshot teacherBatches = await _firestore.collection('batches')
-        .where('coordinatorId', isEqualTo: teacherId)
-        .get();
-    
-    if (teacherBatches.docs.length >= 2) {
-      throw "This teacher is already a coordinator for 2 batches.";
-    }
+    try {
+      QuerySnapshot teacherBatches = await _firestore.collection('batches')
+          .where('coordinatorId', isEqualTo: teacherId)
+          .get();
+      
+      if (teacherBatches.docs.length >= 2) {
+        throw "This teacher is already a coordinator for 2 batches.";
+      }
 
-    await _firestore.collection('batches').doc(batchId).update({
-      'coordinatorId': teacherId,
-    });
+      await _firestore.collection('batches').doc(batchId).set({
+        'coordinatorId': teacherId,
+      }, SetOptions(merge: true));
+
+      DocumentSnapshot userDoc = await _firestore.collection('users').doc(teacherId).get();
+      if (userDoc.exists) {
+        String currentRole = userDoc.get('role') ?? 'teacher';
+        if (currentRole == 'teacher') {
+          await _firestore.collection('users').doc(teacherId).update({
+            'role': 'coordinator',
+          });
+        }
+      }
+      
+      if (kDebugMode) {
+        print("Coordinator $teacherId assigned to batch $batchId");
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print("Error assigning coordinator: $e");
+      }
+      rethrow;
+    }
   }
 
   Future<void> removeCoordinator(String batchId) async {
@@ -305,6 +333,51 @@ class AuthService {
     await _firestore.collection('assignments').add(assignmentData);
   }
 
+  // Examination Management
+  Future<void> createOrUpdateExamForm(ExamFormModel form) async {
+    if (form.id == null) {
+      await _firestore.collection('exam_forms').add(form.toMap());
+    } else {
+      await _firestore.collection('exam_forms').doc(form.id).update(form.toMap());
+    }
+  }
+
+  Stream<ExamFormModel?> getStudentExamForm(String studentId) {
+    return _firestore.collection('exam_forms')
+        .where('studentId', isEqualTo: studentId)
+        .snapshots()
+        .map((snap) => snap.docs.isEmpty ? null : ExamFormModel.fromMap(snap.docs.first.data() as Map<String, dynamic>, snap.docs.first.id));
+  }
+
+  Stream<List<ExamFormModel>> getExamFormsBySemester(int semester) {
+    return _firestore.collection('exam_forms')
+        .where('semester', isEqualTo: semester)
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) => ExamFormModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList());
+  }
+
+  Future<void> updateExamFormStatus(String formId, String status, {String? reason}) async {
+    await _firestore.collection('exam_forms').doc(formId).update({
+      'status': status,
+      'rejectReason': reason,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Exam Timetable
+  Future<void> setExamTimetable(ExamTimetableModel timetable) async {
+    await _firestore.collection('exam_timetables')
+        .doc('${timetable.branchId}_${timetable.semester}')
+        .set(timetable.toMap());
+  }
+
+  Stream<ExamTimetableModel?> getExamTimetable(String branchId, int semester) {
+    return _firestore.collection('exam_timetables')
+        .doc('${branchId}_$semester')
+        .snapshots()
+        .map((doc) => doc.exists ? ExamTimetableModel.fromMap(doc.data() as Map<String, dynamic>, doc.id) : null);
+  }
+
   // ... other methods ...
   Stream<QuerySnapshot> getAllHolidays() => _firestore.collection('holidays').orderBy('date').snapshots();
   Stream<QuerySnapshot> getSubjects(String branch, int semester) => _firestore.collection('subjects').where('branch', isEqualTo: branch).where('semester', isEqualTo: semester).snapshots();
@@ -313,7 +386,14 @@ class AuthService {
   Stream<QuerySnapshot> getAllBatches() => _firestore.collection('batches').orderBy('fullName').snapshots();
   Stream<QuerySnapshot> getBatchesByBranch(String branchId) => _firestore.collection('batches').where('branchId', isEqualTo: branchId).snapshots();
   Stream<List<UserModel>> getAllUsers() => _firestore.collection('users').snapshots().map((snap) => snap.docs.map((doc) => UserModel.fromMap(doc.data(), doc.id)).toList());
-  Stream<List<UserModel>> getTeachers() => _firestore.collection('users').where('role', isEqualTo: 'teacher').snapshots().map((snap) => snap.docs.map((doc) => UserModel.fromMap(doc.data(), doc.id)).toList());
+
+  Stream<List<UserModel>> getTeachers() {
+    return _firestore.collection('users')
+        .where('role', whereIn: ['teacher', 'coordinator'])
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList());
+  }
+
   Future<void> updateProfile(UserModel user) async => await _firestore.collection('users').doc(user.uid).update(user.toMap());
   Future<void> signOut() => _auth.signOut();
   Stream<QuerySnapshot> getPendingRequests() => _firestore.collection('requests').where('status', isEqualTo: 'pending').orderBy('createdAt', descending: true).snapshots();

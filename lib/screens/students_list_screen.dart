@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_underscores
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
@@ -13,102 +15,95 @@ class StudentsListScreen extends StatefulWidget {
 }
 
 class _StudentsListScreenState extends State<StudentsListScreen> {
-  final _auth = AuthService();
-  
-  String _filterType = "Batch"; // Options: Batch, Semester, Coordinator
-  dynamic _selectedFilterValue; 
-  String _studentSearchQuery = "";
+  final AuthService _auth = AuthService();
   final TextEditingController _studentSearchController = TextEditingController();
+  String _studentSearchQuery = "";
+  String _filterType = "Batch";
+  dynamic _selectedFilterValue;
+
+  @override
+  void initState() {
+    super.initState();
+    // For students, default to their own semester
+    if (widget.viewer.role == 'student') {
+      _filterType = "Semester";
+      _selectedFilterValue = widget.viewer.semester;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 120.0,
-            floating: false,
-            pinned: true,
-            elevation: 0,
-            backgroundColor: theme.colorScheme.primary,
-            foregroundColor: Colors.white,
-            flexibleSpace: FlexibleSpaceBar(
-              title: const Text("Student Directory", 
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)
-              ),
-              centerTitle: true,
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topRight,
-                    end: Alignment.bottomLeft,
-                    colors: [
-                      theme.colorScheme.primary,
-                      theme.colorScheme.primary.withValues(alpha: 0.8),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                _buildHeader(theme),
-                _buildSearchField(theme),
-              ],
-            ),
-          ),
-          SliverFillRemaining(
-            hasScrollBody: true,
-            child: _selectedFilterValue == null
-                ? _buildEmptyState()
-                : _buildStudentList(theme),
+      appBar: AppBar(
+        title: const Text("Students Directory", style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: Colors.white,
+      ),
+      body: Column(
+        children: [
+          _buildFilterHeader(theme),
+          _buildSearchField(theme),
+          Expanded(
+            child: _selectedFilterValue == null ? _buildEmptyState() : _buildStudentList(theme),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  Widget _buildFilterHeader(ThemeData theme) {
+    // Students can only see the Semester filter (primarily their own)
+    final List<String> filterOptions = widget.viewer.role == 'student' 
+        ? ["Semester"] 
+        : ["Batch", "Semester", "Coordinator"];
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary,
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
         ),
       ),
       child: Column(
         children: [
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _buildFilterDropdown(
-                  label: "Filter By",
-                  value: _filterType,
-                  items: ["Batch", "Semester", "Coordinator"],
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _filterType = val;
-                        _selectedFilterValue = null;
-                      });
-                    }
-                  },
-                ),
+          if (filterOptions.length > 1) 
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: filterOptions.map((type) {
+                  bool isSelected = _filterType == type;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      selected: isSelected,
+                      label: Text(type),
+                      onSelected: (val) {
+                        setState(() {
+                          _filterType = type;
+                          _selectedFilterValue = null;
+                        });
+                      },
+                      selectedColor: Colors.white,
+                      checkmarkColor: theme.colorScheme.primary,
+                      labelStyle: TextStyle(
+                        color: isSelected ? theme.colorScheme.primary : Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    ),
+                  );
+                }).toList(),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildMenu2(theme),
-              ),
-            ],
-          ),
+            ),
+          const SizedBox(height: 16),
+          _buildFilterSelector(theme),
         ],
       ),
     );
@@ -118,9 +113,10 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
     required String label,
     required T? value,
     required List<T> items,
+    required String Function(T) itemLabel,
     required ValueChanged<T?> onChanged,
-    String Function(T)? itemLabel,
   }) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -137,13 +133,14 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
             child: DropdownButton<T>(
               value: value,
               isExpanded: true,
-              dropdownColor: Colors.indigo[900],
-              icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+              dropdownColor: theme.colorScheme.primary,
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+              hint: Text("Select $label", style: const TextStyle(color: Colors.white60)),
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-              items: items.map((item) {
+              items: items.map((T item) {
                 return DropdownMenuItem<T>(
                   value: item,
-                  child: Text(itemLabel != null ? itemLabel(item) : item.toString()),
+                  child: Text(itemLabel(item)),
                 );
               }).toList(),
               onChanged: onChanged,
@@ -154,10 +151,10 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
     );
   }
 
-  Widget _buildMenu2(ThemeData theme) {
+  Widget _buildFilterSelector(ThemeData theme) {
     if (_filterType == "Batch") {
       return StreamBuilder<QuerySnapshot>(
-        stream: _auth.getAllBatches(),
+        stream: FirebaseFirestore.instance.collection('batches').snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)));
           final batches = snapshot.data!.docs;
@@ -298,22 +295,9 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
   Widget _buildSearchField(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-      child: TextField(
-        controller: _studentSearchController,
-        decoration: InputDecoration(
-          hintText: "Search students by name...",
-          prefixIcon: Icon(Icons.person_search_rounded, color: theme.colorScheme.primary),
-          filled: true,
-          fillColor: Colors.white,
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -322,7 +306,25 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
             )
           ],
         ),
-        onChanged: (val) => setState(() => _studentSearchQuery = val),
+        child: TextField(
+          controller: _studentSearchController,
+          decoration: InputDecoration(
+            hintText: "Search students by name...",
+            prefixIcon: Icon(Icons.person_search_rounded, color: theme.colorScheme.primary),
+            filled: true,
+            fillColor: Colors.white,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+          onChanged: (val) => setState(() => _studentSearchQuery = val),
+        ),
       ),
     );
   }
@@ -406,7 +408,7 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
                 MaterialPageRoute(
                   builder: (_) => StudentDetailScreen(
                     student: student,
-                    isCoordinator: widget.viewer.role == 'teacher', 
+                    viewer: widget.viewer,
                     batchName: student.batch ?? '',
                   ),
                 ),
@@ -486,8 +488,8 @@ class _StudentCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           _InfoChip(
-                            icon: Icons.layers_outlined,
-                            label: "Sem ${student.semester}",
+                            icon: Icons.calendar_today_outlined,
+                            label: "Sem ${student.semester ?? '?'}",
                             color: Colors.orange,
                           ),
                         ],
@@ -495,7 +497,7 @@ class _StudentCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey[300]),
+                Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey[400]),
               ],
             ),
           ),
