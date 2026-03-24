@@ -43,7 +43,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
       if (doc.exists) {
         final userData = UserModel.fromMap(doc.data()!, user.uid);
         
-        // Check if teacher is a coordinator
+        // Check if teacher is a coordinator (either by role or by batch assignment)
+        final isCoordinatorRole = userData.role == 'coordinator';
         final batchSnap = await FirebaseFirestore.instance
             .collection('batches')
             .where('coordinatorId', isEqualTo: user.uid)
@@ -53,7 +54,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
         if (mounted) {
           setState(() {
             _currentUser = userData;
-            _isCoordinator = batchSnap.docs.isNotEmpty;
+            _isCoordinator = isCoordinatorRole || batchSnap.docs.isNotEmpty;
             _isLoading = false;
           });
         }

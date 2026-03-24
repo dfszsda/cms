@@ -4,13 +4,13 @@ import '../services/auth_service.dart';
 
 class StudentDetailScreen extends StatefulWidget {
   final UserModel student;
-  final bool isCoordinator; 
+  final UserModel viewer; 
   final String batchName;
 
   const StudentDetailScreen({
     super.key,
     required this.student,
-    required this.isCoordinator,
+    required this.viewer,
     required this.batchName,
   });
 
@@ -31,6 +31,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    bool canEdit = widget.viewer.role == 'teacher' || widget.viewer.role == 'coordinator' || widget.viewer.role == 'admin';
     
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -47,7 +48,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                   const SizedBox(height: 24),
                   _buildDetailSection(theme),
                   const SizedBox(height: 24),
-                  if (widget.isCoordinator) _buildCoordinatorActions(theme),
+                  if (canEdit) _buildCoordinatorActions(theme),
                   const SizedBox(height: 40),
                 ],
               ),

@@ -294,7 +294,7 @@ class _StudentDirectoryScreenState extends State<StudentDirectoryScreen> {
                   MaterialPageRoute(
                     builder: (_) => StudentDetailScreen(
                       student: student,
-                      isCoordinator: widget.viewer.role == 'teacher', 
+                      viewer: widget.viewer,
                       batchName: student.batch ?? '',
                     ),
                   ),
