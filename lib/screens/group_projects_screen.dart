@@ -94,7 +94,7 @@ class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
               SizedBox(
                 height: 200,
                 child: StreamBuilder<List<UserModel>>(
-                  stream: _auth.getStudentsForAttendance(_internalUser!.branch ?? '', selectedSem),
+                  stream: _auth.getStudentsForAttendance(_internalUser!.branch ?? '', selectedSem, _internalUser!.collegeId ?? ''),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                     final students = snapshot.data!;

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/user_model.dart';
 import '../models/exam_timetable_model.dart';
+import '../models/college_model.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
@@ -16,6 +17,8 @@ import 'order_history_screen.dart';
 import 'student_leave_screen.dart';
 import 'student_exam_form_screen.dart';
 import 'student_exam_timetable_screen.dart';
+import 'student_result_screen.dart';
+import 'student_exam_fee_screen.dart';
 
 class StudentHomeScreen extends StatelessWidget {
   const StudentHomeScreen({super.key});
@@ -137,6 +140,42 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
                     ],
                   ),
                   const SizedBox(height: 24),
+                  
+                  // NEW: College Info Card for Students
+                  StreamBuilder<List<CollegeModel>>(
+                    stream: _auth.getColleges(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) return const SizedBox.shrink();
+                      final college = snapshot.data!.first; // Show the first one by default for students
+                      return InkWell(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CollegeInfoScreen(role: 'student', college: college))),
+                        child: Card(
+                          color: theme.colorScheme.primaryContainer,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.school, size: 40, color: Colors.indigo),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(college.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                      Text(college.university, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.arrow_forward_ios, size: 16),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                  ),
+                  const SizedBox(height: 16),
+
                   Text("Quick Actions", style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                 ],
               ),
@@ -162,7 +201,7 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
                   title: "Attendance",
                   icon: Icons.calendar_month_rounded,
                   color: Colors.green,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(student: _currentUser))),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(student: _currentUser, collegeId: _currentUser?.collegeId))),
                 ),
                 _ModernHomeCard(
                   title: "Examination",
@@ -237,6 +276,15 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
                   }
                 ),
                 _buildMenuItem(
+                  Icons.assessment_rounded, 
+                  "My Result", 
+                  subText: "View & Download",
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => StudentResultScreen(student: _currentUser!)));
+                  }
+                ),
+                _buildMenuItem(
                   Icons.badge_outlined, 
                   "Hall Ticket (PDF)", 
                   subText: isHallTicketAvailable ? "Download Now" : "Available 10 days before exam",
@@ -246,7 +294,15 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hall Ticket format will be added soon!")));
                   } : null,
                 ),
-                _buildMenuItem(Icons.payment_outlined, "Exam Fee", subText: "Coming Soon"),
+                _buildMenuItem(
+                  Icons.payment_outlined, 
+                  "Exam Fee", 
+                  subText: "Pay Now",
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => StudentExamFeeScreen(student: _currentUser!)));
+                  }
+                ),
                 const SizedBox(height: 10),
               ],
             ),

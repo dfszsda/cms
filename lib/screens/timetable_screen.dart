@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../models/user_model.dart';
 
 class TimetableScreen extends StatefulWidget {
   final String? userRole;
@@ -15,30 +17,44 @@ class TimetableScreen extends StatefulWidget {
 
 class _TimetableScreenState extends State<TimetableScreen> {
   final _auth = AuthService();
+  UserModel? _currentUser;
   String? _selectedBranch;
   int _selectedSemester = 1;
   String _selectedDay = "Monday";
   List<Map<String, dynamic>> _slots = [];
-  bool _isLoading = false;
+  bool _isLoading = true;
 
   final List<String> _days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
   @override
   void initState() {
     super.initState();
-    _selectedBranch = widget.userBranch;
-    _selectedSemester = widget.userSemester ?? 1;
-    _loadTimetable();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        setState(() {
+          _currentUser = UserModel.fromMap(doc.data()!, user.uid);
+          _selectedBranch = widget.userBranch ?? _currentUser?.branch;
+          _selectedSemester = widget.userSemester ?? _currentUser?.semester ?? 1;
+          _isLoading = false;
+        });
+        _loadTimetable();
+      }
+    }
   }
 
   void _loadTimetable() {
-    if (_selectedBranch == null) return;
-    _auth.getTimetable(_selectedBranch!, _selectedSemester, _selectedDay).first.then((doc) {
+    if (_selectedBranch == null || _currentUser?.collegeId == null) return;
+    _auth.getTimetable(_selectedBranch!, _selectedSemester, _selectedDay, collegeId: _currentUser!.collegeId).first.then((doc) {
       if (doc.exists) {
         List<dynamic> fetchedSlots = doc.get('slots') ?? [];
         setState(() {
           _slots = List<Map<String, dynamic>>.from(fetchedSlots);
-          // Simple string comparison for sorting
           _slots.sort((a, b) => (a['time'] ?? '').compareTo(b['time'] ?? ''));
         });
       } else {
@@ -72,8 +88,8 @@ class _TimetableScreenState extends State<TimetableScreen> {
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () async {
-              if (controller.text.isNotEmpty && _selectedBranch != null) {
-                await _auth.addSubject(_selectedBranch!, _selectedSemester, controller.text.trim());
+              if (controller.text.isNotEmpty && _selectedBranch != null && _currentUser?.collegeId != null) {
+                await _auth.addSubject(_selectedBranch!, _selectedSemester, controller.text.trim(), _currentUser!.collegeId!);
                 if (dialogContext.mounted) Navigator.pop(dialogContext);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Subject Added!")));
@@ -89,6 +105,8 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    
     bool isReadOnly = widget.userRole == 'student';
     final theme = Theme.of(context);
 
@@ -127,14 +145,15 @@ class _TimetableScreenState extends State<TimetableScreen> {
       color: Colors.white,
       child: Row(
         children: [
-          if (widget.userRole == 'admin')
+          if (widget.userRole == 'admin' || widget.userRole == 'teacher' || widget.userRole == 'coordinator')
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: _auth.getBranches(),
+                stream: _auth.getBranches(collegeId: _currentUser?.collegeId),
                 builder: (context, snap) {
                   if (!snap.hasData) return const LinearProgressIndicator();
                   var branches = snap.data!.docs.map((d) => d.id).toList();
                   return DropdownButtonFormField<String>(
+                    value: _selectedBranch,
                     decoration: const InputDecoration(labelText: "Branch", border: OutlineInputBorder()),
                     items: branches.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
                     onChanged: (v) { setState(() => _selectedBranch = v); _loadTimetable(); },
@@ -155,6 +174,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
           const SizedBox(width: 16),
           Expanded(
             child: DropdownButtonFormField<int>(
+              value: _selectedSemester,
               decoration: const InputDecoration(labelText: "Semester", border: OutlineInputBorder()),
               items: List.generate(8, (i) => i + 1).map((s) => DropdownMenuItem(value: s, child: Text("Sem $s"))).toList(),
               onChanged: (v) { setState(() => _selectedSemester = v!); _loadTimetable(); },
@@ -219,7 +239,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
             ),
             child: IntrinsicHeight(
               child: Row(
@@ -255,7 +275,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                     margin: const EdgeInsets.all(16),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: (isBreak ? Colors.orange : Colors.green).withValues(alpha: 0.1),
+                      color: (isBreak ? Colors.orange : Colors.green).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -314,10 +334,11 @@ class _TimetableScreenState extends State<TimetableScreen> {
                       controller: TextEditingController.fromValue(TextEditingValue(text: slot['subject'] ?? '', selection: TextSelection.collapsed(offset: (slot['subject'] ?? '').length))),
                     )
                   : StreamBuilder<QuerySnapshot>(
-                      stream: _auth.getSubjects(_selectedBranch ?? '', _selectedSemester),
+                      stream: _auth.getSubjects(_selectedBranch ?? '', _selectedSemester, collegeId: _currentUser?.collegeId),
                       builder: (context, snap) {
                         List<String> subjects = snap.hasData ? snap.data!.docs.map((d) => d['name'] as String).toList() : [];
                         return DropdownButtonFormField<String>(
+                          value: subjects.contains(slot['subject']) ? slot['subject'] : null,
                           decoration: const InputDecoration(labelText: "Select Subject", border: OutlineInputBorder()),
                           items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                           onChanged: (v) => _slots[index]['subject'] = v,
@@ -337,9 +358,9 @@ class _TimetableScreenState extends State<TimetableScreen> {
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]),
       child: ElevatedButton(
-        onPressed: _isLoading ? null : () async {
+        onPressed: (_isLoading || _currentUser?.collegeId == null) ? null : () async {
           setState(() => _isLoading = true);
-          await _auth.setTimetable(_selectedBranch!, _selectedSemester, _selectedDay, _slots);
+          await _auth.setTimetable(_selectedBranch!, _selectedSemester, _selectedDay, _slots, _currentUser!.collegeId!);
           if (mounted) {
             setState(() => _isLoading = false);
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Timetable Updated Successfully!")));

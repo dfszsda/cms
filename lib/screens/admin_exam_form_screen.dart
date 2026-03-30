@@ -5,7 +5,8 @@ import '../models/exam_form_model.dart';
 import '../services/auth_service.dart';
 
 class AdminExamFormScreen extends StatefulWidget {
-  const AdminExamFormScreen({super.key});
+  final String? collegeId;
+  const AdminExamFormScreen({super.key, this.collegeId});
 
   @override
   State<AdminExamFormScreen> createState() => _AdminExamFormScreenState();
@@ -67,7 +68,7 @@ class _AdminExamFormScreenState extends State<AdminExamFormScreen> {
           ),
           Expanded(
             child: StreamBuilder<List<UserModel>>(
-              stream: _auth.getStudentsBySemester(_selectedSemester),
+              stream: _auth.getStudentsBySemester(_selectedSemester, collegeId: widget.collegeId),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 
@@ -121,7 +122,10 @@ class _AdminExamFormScreenState extends State<AdminExamFormScreen> {
         content: SizedBox(
           width: double.maxFinite,
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('exam_forms').where('status', isEqualTo: 'Rejected').snapshots(),
+            stream: FirebaseFirestore.instance.collection('exam_forms')
+                .where('status', isEqualTo: 'Rejected')
+                .where('collegeId', isEqualTo: widget.collegeId)
+                .snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
               if (snapshot.data!.docs.isEmpty) return const Text("No rejected forms found.");
@@ -178,7 +182,7 @@ class _AdminExamFormScreenState extends State<AdminExamFormScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => StudentFormDetailScreen(student: student, form: existingForm),
+        builder: (_) => StudentFormDetailScreen(student: student, form: existingForm, collegeId: widget.collegeId),
       ),
     );
   }
@@ -187,8 +191,9 @@ class _AdminExamFormScreenState extends State<AdminExamFormScreen> {
 class StudentFormDetailScreen extends StatefulWidget {
   final UserModel student;
   final ExamFormModel? form;
+  final String? collegeId;
 
-  const StudentFormDetailScreen({super.key, required this.student, this.form});
+  const StudentFormDetailScreen({super.key, required this.student, this.form, this.collegeId});
 
   @override
   State<StudentFormDetailScreen> createState() => _StudentFormDetailScreenState();
@@ -213,7 +218,7 @@ class _StudentFormDetailScreenState extends State<StudentFormDetailScreen> with 
   }
 
   Future<void> _loadDefaultSubjects() async {
-    final subSnap = await _auth.getSubjects(widget.student.branch ?? '', widget.student.semester ?? 1).first;
+    final subSnap = await _auth.getSubjects(widget.student.branch ?? '', widget.student.semester ?? 1, collegeId: widget.collegeId).first;
     setState(() {
       _subjects = subSnap.docs.map((doc) => ExamSubject(name: doc['name'], type: 'Theory')).toList();
     });
@@ -254,7 +259,7 @@ class _StudentFormDetailScreenState extends State<StudentFormDetailScreen> with 
             padding: const EdgeInsets.all(16),
             color: Colors.grey[100],
             child: StreamBuilder<QuerySnapshot>(
-              stream: _auth.getSubjects(widget.student.branch ?? '', widget.student.semester ?? 1),
+              stream: _auth.getSubjects(widget.student.branch ?? '', widget.student.semester ?? 1, collegeId: widget.collegeId),
               builder: (context, snap) {
                 if (!snap.hasData) return const LinearProgressIndicator();
                 final availableSubjects = snap.data!.docs.map((d) => d['name'] as String).toList();
@@ -315,6 +320,7 @@ class _StudentFormDetailScreenState extends State<StudentFormDetailScreen> with 
                   semester: widget.student.semester ?? 1,
                   subjects: _subjects,
                   status: 'Pending',
+                  collegeId: widget.collegeId,
                 );
                 await _auth.createOrUpdateExamForm(newForm);
                 if (!context.mounted) return;

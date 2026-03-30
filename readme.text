@@ -16,15 +16,32 @@ cms/
 ├── lib/                    # Core application logic
 │   ├── main.dart           # Application entry point
 │   ├── models/             # Data models
+│   │   ├── book_model.dart
+│   │   ├── book_order_model.dart
+│   │   ├── college_model.dart
+│   │   ├── exam_form_model.dart
+│   │   ├── exam_timetable_model.dart
 │   │   ├── leave_model.dart
+│   │   ├── membership_model.dart
+│   │   ├── payment_config_model.dart
+│   │   ├── result_model.dart
 │   │   ├── todo_model.dart
+│   │   ├── ufm_model.dart
 │   │   └── user_model.dart
 │   ├── services/           # Backend & API services
 │   │   ├── auth_service.dart
 │   │   ├── canteen_service.dart
-│   │   └── drive_service.dart
+│   │   ├── drive_service.dart
+│   │   ├── paytm_service.dart
+│   │   ├── razorpay_service.dart
+│   │   └── sbi_epay_service.dart
 │   ├── screens/            # UI Screens
+│   │   ├── admin_college_fee_screen.dart
+│   │   ├── admin_exam_fee_screen.dart
+│   │   ├── admin_exam_form_screen.dart
+│   │   ├── admin_exam_timetable_screen.dart
 │   │   ├── admin_home_screen.dart
+│   │   ├── admin_result_management_screen.dart
 │   │   ├── assignment_submission_screen.dart
 │   │   ├── attendance_screen.dart
 │   │   ├── canteen_screen.dart
@@ -36,27 +53,36 @@ cms/
 │   │   ├── events_screen.dart
 │   │   ├── group_projects_screen.dart
 │   │   ├── holiday_screen.dart
+│   │   ├── library_management_screen.dart
 │   │   ├── library_screen.dart
 │   │   ├── login_screen.dart
 │   │   ├── maintenance_screen.dart
 │   │   ├── materials_screen.dart
 │   │   ├── order_history_screen.dart
 │   │   ├── order_management_screen.dart
+│   │   ├── payment_settings_screen.dart
 │   │   ├── profile_screen.dart
 │   │   ├── retailer_home_screen.dart
 │   │   ├── semester_management_screen.dart
 │   │   ├── signup_screen.dart
 │   │   ├── student_detail_screen.dart
 │   │   ├── student_directory_screen.dart
+│   │   ├── student_exam_fee_screen.dart
+│   │   ├── student_exam_form_screen.dart
+│   │   ├── student_exam_timetable_screen.dart
+│   │   ├── student_fee_screen.dart
 │   │   ├── student_home_screen.dart
 │   │   ├── student_leave_screen.dart
+│   │   ├── student_result_screen.dart
 │   │   ├── students_list_screen.dart
 │   │   ├── students_section_screen.dart
 │   │   ├── teacher_assignments_screen.dart
 │   │   ├── teacher_home_screen.dart
 │   │   ├── teachers_list_screen.dart
 │   │   ├── timetable_screen.dart
-│   │   └── todo_works_screen.dart
+│   │   ├── todo_works_screen.dart
+│   │   ├── ufm_dashboard_screen.dart
+│   │   └── ufm_suspension_screen.dart
 │   └── raw/                # Assets/Resources
 │       └── logo.png
 ├── analysis_options.yaml   # Dart linter rules
@@ -67,19 +93,23 @@ cms/
 
 ## 🛠 Tech Stack
 - **Framework:** Flutter (SDK ^3.11.0)
-- **Backend:** Firebase (Core, Auth, Firestore)
+- **Backend:** Firebase (Core, Auth, Firestore, Storage)
+- **Payment Gateways:** SBI ePay, Razorpay, Paytm
 - **APIs:** Google Drive API, Google Auth
 - **Storage:** Shared Preferences
-- **UI Components:** Google Fonts, Table Calendar, Cupertino Icons
+- **UI Components:** Google Fonts, Table Calendar, Material 3
 
 ## ✨ Key Features
-- **Role-Based Access:** Distinct dashboards for Students, Teachers, Admins, and Retailers.
-- **Authentication:** Secure Login, Signup, and Password Management via Firebase.
-- **Academic Tools:** Manage Timetables, Attendance, Assignments, and Semester details.
-- **Canteen Management:** Digital menu browsing, cart system, and order history.
-- **Leave System:** Student leave application and Coordinator approval workflow.
-- **Resource Sharing:** Access to study materials and library resources.
-- **Communication:** Updates on College Events and Holiday schedules.
+- **Role-Based Access:** Specialized dashboards for Students, Teachers, Admins, and Retailers.
+- **Exam Management:** Exam form filling, hall ticket generation, and exam timetable management.
+- **Result System:** Real-time result publishing and individual student result tracking.
+- **Fee Payment:** Integrated payment system for College fees and Exam fees using SBI ePay, Razorpay, and Paytm.
+- **Library System:** Complete library management including book cataloging and membership tracking.
+- **Attendance & Assignments:** Digital tracking of attendance and assignment lifecycle (Submission -> Review -> Feedback).
+- **Canteen Management:** Digital menu browsing, cart system, and real-time order management for retailers.
+- **Leave Management:** Streamlined workflow for leave applications and approvals.
+- **UFM Tracking:** System to manage and track UnFair Means cases during exams.
+- **Resource Hub:** Centralized repository for study materials, college events, and holiday schedules.
 
 ## 🚀 Getting Started
 1. **Prerequisites:** Install Flutter and Dart SDK.

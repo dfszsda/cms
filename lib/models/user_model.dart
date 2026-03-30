@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class UserModel {
   final String uid;
   final String fullName;
   final String email;
-  final String role; // 'student', 'teacher', 'admin'
+  final String role; // 'student', 'teacher', 'admin', 'coordinator', 'system_admin'
   final String? password;
   String? username;
   int? age;
@@ -17,7 +19,12 @@ class UserModel {
   bool profileComplete;
   int? semester;
   String? batch; 
-  String? branch; // New field for branch (IT, CE, etc.)
+  String? branch; 
+  String? collegeId; // NEW: Multi-college isolation
+  
+  // UFM Fields
+  bool isUfmBanned;
+  DateTime? ufmBanUntil;
 
   UserModel({
     required this.uid,
@@ -39,6 +46,9 @@ class UserModel {
     this.semester,
     this.batch,
     this.branch,
+    this.collegeId,
+    this.isUfmBanned = false,
+    this.ufmBanUntil,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> data, String uid) {
@@ -62,6 +72,9 @@ class UserModel {
       semester: data['semester'],
       batch: data['batch'],
       branch: data['branch'],
+      collegeId: data['collegeId'],
+      isUfmBanned: data['isUfmBanned'] ?? false,
+      ufmBanUntil: data['ufmBanUntil'] != null ? (data['ufmBanUntil'] as Timestamp).toDate() : null,
     );
   }
 
@@ -85,6 +98,9 @@ class UserModel {
       'semester': semester,
       'batch': batch,
       'branch': branch,
+      'collegeId': collegeId,
+      'isUfmBanned': isUfmBanned,
+      'ufmBanUntil': ufmBanUntil != null ? Timestamp.fromDate(ufmBanUntil!) : null,
     };
   }
 

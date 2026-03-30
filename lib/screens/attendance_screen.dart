@@ -11,8 +11,9 @@ import '../models/leave_model.dart';
 class AttendanceScreen extends StatefulWidget {
   final String? teacherBranch; // Nullable to detect student vs teacher
   final UserModel? student;
+  final String? collegeId;
   
-  const AttendanceScreen({super.key, this.teacherBranch, this.student});
+  const AttendanceScreen({super.key, this.teacherBranch, this.student, this.collegeId});
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
@@ -20,6 +21,7 @@ class AttendanceScreen extends StatefulWidget {
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
   final _auth = AuthService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   int _selectedSemester = 1;
   String? _selectedSubject;
   DateTime _selectedDate = DateTime.now();
@@ -100,7 +102,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
             ElevatedButton(
               onPressed: () async {
-                if (titleController.text.isNotEmpty) {
+                if (titleController.text.isNotEmpty && widget.teacherBranch != null && widget.collegeId != null) {
                   final messenger = ScaffoldMessenger.of(context);
                   final navigator = Navigator.of(context);
                   
@@ -109,18 +111,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                            titleController.text.toLowerCase().contains("working");
 
                   if (isWorkingSaturday) {
-                    await FirebaseFirestore.instance.collection('working_saturdays').add({
+                    await _firestore.collection('working_saturdays').add({
                       'date': Timestamp.fromDate(DateTime(holidayDate.year, holidayDate.month, holidayDate.day)),
                       'title': titleController.text.trim(),
                       'branchId': widget.teacherBranch,
                       'teacherId': _auth.currentUser?.uid,
+                      'collegeId': widget.collegeId,
                       'createdAt': FieldValue.serverTimestamp(),
                     });
                   } else {
                     await _auth.addHoliday(
                       date: holidayDate,
                       title: titleController.text.trim(),
-                      branchId: widget.teacherBranch,
+                      branchId: widget.teacherBranch!,
+                      collegeId: widget.collegeId!,
                     );
                   }
                   
@@ -191,7 +195,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: StreamBuilder<QuerySnapshot>(
-                      stream: _auth.getSubjects(widget.teacherBranch!, _selectedSemester),
+                      stream: _auth.getSubjects(widget.teacherBranch!, _selectedSemester, collegeId: widget.collegeId),
                       builder: (context, snapshot) {
                         List<String> subjects = [];
                         if (snapshot.hasData) {
@@ -229,7 +233,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         const Divider(),
         Expanded(
           child: StreamBuilder<List<UserModel>>(
-            stream: _auth.getStudentsForAttendance(widget.teacherBranch!, _selectedSemester),
+            stream: _auth.getStudentsForAttendance(widget.teacherBranch!, _selectedSemester, widget.collegeId!),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
               if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("No students found."));
@@ -329,13 +333,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Widget _buildStudentView() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _auth.getStudentAttendance(widget.student!.uid, widget.student!.branch ?? '', widget.student!.semester ?? 1),
+      stream: _auth.getStudentAttendance(widget.student!.uid, widget.student!.branch ?? '', widget.student!.semester ?? 1, collegeId: widget.student?.collegeId),
       builder: (context, attendanceSnap) {
         return StreamBuilder<QuerySnapshot>(
-          stream: _auth.getAllHolidays(),
+          stream: _auth.getAllHolidays(collegeId: widget.student?.collegeId),
           builder: (context, holidaySnap) {
             return StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('working_saturdays').snapshots(),
+              stream: _firestore.collection('working_saturdays').where('collegeId', isEqualTo: widget.student?.collegeId).snapshots(),
               builder: (context, workingSatSnap) {
                 return StreamBuilder<List<LeaveModel>>(
                   stream: _auth.getStudentLeaves(widget.student!.uid),
@@ -646,6 +650,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         date: _selectedDate,
         presentUids: _presentStudents,
         absentUids: _absentStudents,
+        collegeId: widget.collegeId!,
       );
       
       messenger.showSnackBar(const SnackBar(content: Text("Attendance recorded successfully!")));

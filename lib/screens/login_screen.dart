@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../widgets/app_logo.dart';
 import 'change_password_screen.dart';
 import 'student_home_screen.dart';
 import 'teacher_home_screen.dart';
 import 'admin_home_screen.dart';
 import 'retailer_home_screen.dart';
+import 'library_management_screen.dart';
 import 'profile_screen.dart';
+import 'ufm_suspension_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,6 +48,15 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception("User data not found.");
       }
 
+      // Check for UFM Ban
+      if (user.role == 'student' && user.isUfmBanned) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => UfmSuspensionScreen(student: user)),
+        );
+        return;
+      }
+
       if (user.role == 'admin') {
         Navigator.pushReplacement(
           context,
@@ -54,6 +66,11 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const RetailerHomeScreen()),
+        );
+      } else if (user.role == 'librarian') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LibraryManagementScreen()),
         );
       } else {
         final isFirst = await _auth.isFirstTimeLogin(user.uid);
@@ -162,21 +179,14 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 60),
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.school_rounded, size: 64, color: Theme.of(context).colorScheme.primary),
-                ),
+              const SizedBox(height: 40),
+              const Center(
+                child: AppLogo(size: 110),
               ),
               const SizedBox(height: 32),
               const Center(child: Text("Welcome Back", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
               const Center(child: Text("Login to your college account", style: TextStyle(color: Colors.grey, fontSize: 16))),
-              const SizedBox(height: 48),
+              const SizedBox(height: 40),
               const Text("Email Address", style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               TextField(

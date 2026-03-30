@@ -8,12 +8,17 @@ class CanteenService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Canteen Items Management
-  Stream<QuerySnapshot> getCanteenItems() {
-    return _firestore.collection('canteen_items').snapshots();
+  // Canteen Items Management (Scoped to College)
+  Stream<QuerySnapshot> getCanteenItems({String? collegeId}) {
+    Query query = _firestore.collection('canteen_items');
+    if (collegeId != null) {
+      query = query.where('collegeId', isEqualTo: collegeId);
+    }
+    return query.snapshots();
   }
 
-  Future<void> addCanteenItem(Map<String, dynamic> itemData) async {
+  Future<void> addCanteenItem(Map<String, dynamic> itemData, String collegeId) async {
+    itemData['collegeId'] = collegeId;
     await _firestore.collection('canteen_items').add(itemData);
   }
 
@@ -33,12 +38,16 @@ class CanteenService {
       6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
   }
 
-  // Order Management
+  // Order Management (Scoped to College)
   Future<void> placeOrder({
     required List<Map<String, dynamic>> items,
     required double totalAmount,
     required String userName,
     required String userRole,
+    required String paymentMethod,
+    required String paymentStatus,
+    required String collegeId,
+    String? transactionId,
   }) async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -50,15 +59,23 @@ class CanteenService {
       'userId': user.uid,
       'userName': userName,
       'userRole': userRole,
+      'collegeId': collegeId,
       'items': items,
       'totalAmount': totalAmount,
-      'status': 'pending',
+      'status': 'pending', // 'pending', 'confirmed', 'delivered', 'cancelled'
+      'paymentMethod': paymentMethod, // 'Cash', 'Online'
+      'paymentStatus': paymentStatus, // 'Pending', 'Completed'
+      'transactionId': transactionId,
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
-  Stream<QuerySnapshot> getAllOrders() {
-    return _firestore.collection('orders').orderBy('timestamp', descending: true).snapshots();
+  Stream<QuerySnapshot> getAllOrders({String? collegeId}) {
+    Query query = _firestore.collection('orders');
+    if (collegeId != null) {
+      query = query.where('collegeId', isEqualTo: collegeId);
+    }
+    return query.orderBy('timestamp', descending: true).snapshots();
   }
 
   Stream<QuerySnapshot> getMyOrders() {
@@ -68,6 +85,12 @@ class CanteenService {
         .where('userId', isEqualTo: user.uid)
         .orderBy('timestamp', descending: true)
         .snapshots();
+  }
+
+  Future<void> updateOrderStatus(String docId, String status) async {
+    await _firestore.collection('orders').doc(docId).update({
+      'status': status,
+    });
   }
 
   Future<void> markOrderAsDelivered(String docId) async {
@@ -82,7 +105,7 @@ class CanteenService {
     });
   }
 
-  // Sync function to fix old orders
+  // Sync function to fix old orders (Scoping added)
   Future<void> syncOrders() async {
     try {
       final ordersQuery = await _firestore.collection('orders').get();
@@ -97,7 +120,13 @@ class CanteenService {
           needsUpdate = true;
         }
 
-        if (!data.containsKey('userName') || !data.containsKey('userRole')) {
+        if (!data.containsKey('paymentMethod')) {
+          updates['paymentMethod'] = 'Cash';
+          updates['paymentStatus'] = 'Pending';
+          needsUpdate = true;
+        }
+
+        if (!data.containsKey('userName') || !data.containsKey('userRole') || !data.containsKey('collegeId')) {
           String userId = data['userId'];
           if (userId != null) {
             DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
@@ -108,6 +137,9 @@ class CanteenService {
               }
               if (!data.containsKey('userRole')) {
                 updates['userRole'] = userData['role'] ?? 'student';
+              }
+              if (!data.containsKey('collegeId')) {
+                updates['collegeId'] = userData['collegeId'];
               }
               needsUpdate = true;
             }

@@ -63,6 +63,8 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
                     final orderData = order.data() as Map<String, dynamic>;
                     final List items = orderData['items'] ?? [];
                     final String status = orderData['status'] ?? 'pending';
+                    final String paymentMethod = orderData['paymentMethod'] ?? 'Cash';
+                    final String paymentStatus = orderData['paymentStatus'] ?? 'Pending';
                     final String orderId = orderData['orderId'] ?? 'N/A';
                     final Timestamp? timestamp = orderData['timestamp'] as Timestamp?;
                     final String dateStr = timestamp != null 
@@ -82,6 +84,27 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
                         trailing: _buildStatusChip(status),
                         children: [
                           const Divider(),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("Payment: $paymentMethod", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                Text("Status: $paymentStatus", 
+                                  style: TextStyle(
+                                    color: paymentStatus == 'Completed' ? Colors.green : Colors.orange,
+                                    fontWeight: FontWeight.bold
+                                  )
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (orderData['transactionId'] != null)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                              child: Text("Txn ID: ${orderData['transactionId']}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                            ),
+                          const Divider(),
                           ...items.map((item) => ListTile(
                             title: Text(item['name']),
                             trailing: Text("x${item['quantity']}"),
@@ -95,17 +118,17 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
                                   ElevatedButton(
                                     onPressed: () async {
                                       final messenger = ScaffoldMessenger.of(context);
-                                      await _canteenService.markOrderAsDelivered(order.id);
+                                      await _canteenService.updateOrderStatus(order.id, 'confirmed');
                                       messenger.showSnackBar(
-                                        const SnackBar(content: Text("Order marked as delivered")),
+                                        const SnackBar(content: Text("Order confirmed")),
                                       );
                                     },
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
+                                      backgroundColor: Colors.blue,
                                       foregroundColor: Colors.white,
                                       minimumSize: const Size.fromHeight(45),
                                     ),
-                                    child: const Text("MARK AS DELIVERED"),
+                                    child: const Text("CONFIRM ORDER"),
                                   ),
                                   const SizedBox(height: 8),
                                   OutlinedButton(
@@ -118,6 +141,25 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
                                     child: const Text("CANCEL ORDER"),
                                   ),
                                 ],
+                              ),
+                            ),
+                          if (status == 'confirmed')
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  await _canteenService.markOrderAsDelivered(order.id);
+                                  messenger.showSnackBar(
+                                    const SnackBar(content: Text("Order marked as delivered")),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size.fromHeight(45),
+                                ),
+                                child: const Text("MARK AS DELIVERED"),
                               ),
                             ),
                         ],
@@ -166,6 +208,8 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
       color = Colors.green;
     } else if (status == 'cancelled') {
       color = Colors.red;
+    } else if (status == 'confirmed') {
+      color = Colors.blue;
     } else {
       color = Colors.orange;
     }
