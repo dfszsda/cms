@@ -4,11 +4,13 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import 'attendance_screen.dart';
 import 'students_list_screen.dart';
-import 'coming_soon_screen.dart';
 import 'todo_works_screen.dart';
 import 'materials_screen.dart';
 import 'assignment_submission_screen.dart';
 import 'timetable_screen.dart';
+import 'student_result_screen.dart';
+import 'student_fee_screen.dart';
+import 'library_screen.dart';
 
 class StudentsSectionScreen extends StatefulWidget {
   final UserModel? user;
@@ -80,10 +82,20 @@ class _StudentsSectionScreenState extends State<StudentsSectionScreen> {
                     childAspectRatio: 1.1,
                     children: [
                       _ModernSectionCard(
+                        title: "Library",
+                        icon: Icons.local_library_rounded,
+                        color: Colors.indigo,
+                        onTap: () {
+                          if (widget.user != null) {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => LibraryScreen(user: widget.user!)));
+                          }
+                        },
+                      ),
+                      _ModernSectionCard(
                         title: "Attendance",
                         icon: Icons.calendar_month_rounded,
                         color: Colors.green,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(student: widget.user))),
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(student: widget.user, collegeId: widget.user?.collegeId))),
                       ),
                       _ModernSectionCard(
                         title: "Student List",
@@ -105,7 +117,11 @@ class _StudentsSectionScreenState extends State<StudentsSectionScreen> {
                         title: "Fees",
                         icon: Icons.account_balance_wallet_rounded,
                         color: Colors.orange,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ComingSoonScreen(title: "Fees"))),
+                        onTap: () {
+                          if (widget.user != null) {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => StudentFeeScreen(student: widget.user!)));
+                          }
+                        },
                       ),
                       _ModernSectionCard(
                         title: "Timetable",
@@ -133,7 +149,11 @@ class _StudentsSectionScreenState extends State<StudentsSectionScreen> {
                         title: "Result",
                         icon: Icons.assessment_rounded,
                         color: Colors.blueGrey,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ComingSoonScreen(title: "Result"))),
+                        onTap: () {
+                          if (widget.user != null) {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => StudentResultScreen(student: widget.user!)));
+                          }
+                        },
                       ),
                     ],
                   ),
@@ -150,7 +170,7 @@ class _StudentsSectionScreenState extends State<StudentsSectionScreen> {
     if (widget.user == null) return const SizedBox();
     
     return StreamBuilder<QuerySnapshot>(
-      stream: _auth.getStudentAttendance(widget.user!.uid, widget.user!.branch ?? '', widget.user!.semester ?? 1),
+      stream: _auth.getStudentAttendance(widget.user!.uid, widget.user!.branch ?? '', widget.user!.semester ?? 1, collegeId: widget.user?.collegeId),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const SizedBox();
         
@@ -166,7 +186,7 @@ class _StudentsSectionScreenState extends State<StudentsSectionScreen> {
         double percentage = totalDays == 0 ? 0 : (presentDays / totalDays) * 100;
         
         return InkWell(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(student: widget.user))),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(student: widget.user, collegeId: widget.user?.collegeId))),
           borderRadius: BorderRadius.circular(20),
           child: Container(
             width: double.infinity,

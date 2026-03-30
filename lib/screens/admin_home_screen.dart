@@ -1,13 +1,22 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
+import '../models/college_model.dart';
 import 'login_screen.dart';
 import 'holiday_screen.dart';
 import 'admin_exam_form_screen.dart';
 import 'admin_exam_timetable_screen.dart';
+import 'ufm_dashboard_screen.dart';
+import 'admin_result_management_screen.dart';
+import 'payment_settings_screen.dart';
+import 'admin_exam_fee_screen.dart';
+import 'admin_college_fee_screen.dart';
+import 'library_management_screen.dart';
+import 'college_info_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -18,7 +27,13 @@ class AdminHomeScreen extends StatefulWidget {
 
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
   final _auth = AuthService();
+  // ignore: unused_field
+  UserModel? _adminUser;
   
+  // Scoping
+  String? _managedCollegeId;
+  String? _managedCollegeName;
+
   // Controllers
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -33,22 +48,46 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   String? _selectedBatchName;
   String? _selectedCoordinatorId;
   int _selectedSemester = 1;
-  bool _isLoading = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAdminData();
+  }
+
+  Future<void> _loadAdminData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        setState(() {
+          _adminUser = UserModel.fromMap(doc.data()!, user.uid);
+          // Admin can manage any college, start with none selected
+          _managedCollegeId = null; 
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
     return DefaultTabController(
-      length: 8,
+      length: 12,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text("Admin Dashboard"),
+          title: Text(_managedCollegeName != null ? "Admin: $_managedCollegeName" : "Admin Dashboard"),
           backgroundColor: Colors.indigo,
           foregroundColor: Colors.white,
           actions: [
+            _buildCollegeSelectorAction(),
             IconButton(
-              icon: const Icon(Icons.event_note),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HolidayScreen(isAdmin: true))),
-              tooltip: "Manage Holidays",
+              icon: const Icon(Icons.settings_suggest_outlined),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentSettingsScreen())),
+              tooltip: "Payment Settings",
             ),
             IconButton(
               icon: const Icon(Icons.logout),
@@ -69,8 +108,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             isScrollable: true,
             tabs: [
               Tab(icon: Icon(Icons.person_add), text: "Add User"),
+              Tab(icon: Icon(Icons.school), text: "Colleges"),
+              Tab(icon: Icon(Icons.sync), text: "Migration"),
               Tab(icon: Icon(Icons.account_tree_rounded), text: "Branches"),
               Tab(icon: Icon(Icons.grid_view_rounded), text: "Batches"),
+              Tab(icon: Icon(Icons.local_library), text: "Library"),
+              Tab(icon: Icon(Icons.account_balance_wallet_rounded), text: "Fees"),
               Tab(icon: Icon(Icons.warning_amber_rounded), text: "Unassigned"),
               Tab(icon: Icon(Icons.book), text: "Subjects"),
               Tab(icon: Icon(Icons.assignment_ind_rounded), text: "Examination"),
@@ -79,11 +122,17 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ],
           ),
         ),
-        body: TabBarView(
+        body: _managedCollegeId == null 
+          ? _buildNoCollegeSelected()
+          : TabBarView(
           children: [
             _buildAddUserTab(),
+            CollegeInfoScreen(role: 'admin', collegeId: _managedCollegeId),
+            _buildMigrationTab(),
             _buildBranchesTab(),
             _buildBatchesTab(),
+            _buildLibraryTab(),
+            _buildFeesTab(),
             _buildUnassignedBatchesTab(),
             _buildSubjectsTab(),
             _buildExaminationTab(),
@@ -95,70 +144,155 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  // --- NEW EXAMINATION TAB ---
-  Widget _buildExaminationTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          const Text("Examination Management", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childAspectRatio: 1.2,
-            children: [
-              _buildAdminExamCard(Icons.report_problem_outlined, "UFM Cases", Colors.red),
-              _buildAdminExamCard(
-                Icons.calendar_today_outlined, 
-                "Set Timetable", 
-                Colors.blue, 
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminExamTimetableScreen()))
-              ),
-              _buildAdminExamCard(Icons.upload_file_rounded, "Upload Hall Tickets", Colors.green),
-              _buildAdminExamCard(Icons.description_outlined, "Exam Forms", Colors.orange, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminExamFormScreen()))),
-              _buildAdminExamCard(Icons.payments_outlined, "Set Exam Fee", Colors.purple),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAdminExamCard(IconData icon, String title, Color color, {VoidCallback? onTap}) {
-    String subText = "Coming Soon";
-    if (title == "Exam Forms") subText = "View Forms";
-    if (title == "Set Timetable") subText = "Manage Timetable";
-
-    return InkWell(
-      onTap: onTap,
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+  Widget _buildNoCollegeSelected() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 40),
-            const SizedBox(height: 10),
-            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold)),
-            Text(subText, style: TextStyle(fontSize: 10, color: onTap == null ? Colors.grey : Colors.indigo)),
+            const Icon(Icons.account_balance_rounded, size: 100, color: Colors.indigo),
+            const SizedBox(height: 20),
+            const Text("Welcome to Admin Panel", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const Text("Please select a college to start managing or add a new one.", 
+              textAlign: TextAlign.center, 
+              style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 30),
+            
+            StreamBuilder<List<CollegeModel>>(
+              stream: _auth.getColleges(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const CircularProgressIndicator();
+                final colleges = snapshot.data!;
+                
+                return Column(
+                  children: [
+                    if (colleges.isNotEmpty) ...[
+                      const Text("Select College:", style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.indigo),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: DropdownButton<CollegeModel>(
+                          hint: const Text("Choose College"),
+                          underline: const SizedBox(),
+                          isExpanded: true,
+                          items: colleges.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
+                          onChanged: (col) {
+                            setState(() {
+                              _managedCollegeId = col!.id;
+                              _managedCollegeName = col.name;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text("OR", style: TextStyle(color: Colors.grey)),
+                      const SizedBox(height: 20),
+                    ],
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        // Navigate to a screen or show dialog to add college
+                        // For now, we use the CollegeInfoScreen in admin mode
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const CollegeInfoScreen(role: 'admin')));
+                      },
+                      icon: const Icon(Icons.add_business_rounded),
+                      label: const Text("ADD NEW COLLEGE"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.indigo,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(200, 50),
+                      ),
+                    ),
+                  ],
+                );
+              }
+            ),
           ],
         ),
       ),
     );
   }
 
-  // --- 1. ADD USER TAB ---
+  Widget _buildCollegeSelectorAction() {
+    return StreamBuilder<List<CollegeModel>>(
+      stream: _auth.getColleges(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        final colleges = snapshot.data!;
+        return PopupMenuButton<CollegeModel>(
+          icon: const Icon(Icons.swap_horiz_rounded, color: Colors.white),
+          tooltip: "Switch College",
+          onSelected: (col) {
+            setState(() {
+              _managedCollegeId = col.id;
+              _managedCollegeName = col.name;
+            });
+          },
+          itemBuilder: (context) => colleges.map((c) => PopupMenuItem(value: c, child: Text(c.name))).toList(),
+        );
+      },
+    );
+  }
+
+  // --- MIGRATION TAB ---
+  Widget _buildMigrationTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Data Migration Tool", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const Text("Assign existing unassigned data to the currently managed college.", style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 30),
+          _migrationCard("Users", "users"),
+          _migrationCard("Branches", "branches"),
+          _migrationCard("Batches", "batches"),
+          _migrationCard("Subjects", "subjects"),
+          _migrationCard("Canteen Items", "canteen_items"),
+          _migrationCard("Library Books", "books"),
+        ],
+      ),
+    );
+  }
+
+  Widget _migrationCard(String label, String collection) {
+    return FutureBuilder<int>(
+      future: _auth.getOrphanCount(collection),
+      builder: (context, snapshot) {
+        int count = snapshot.data ?? 0;
+        return Card(
+          child: ListTile(
+            title: Text(label),
+            subtitle: Text("$count unassigned items found"),
+            trailing: count > 0 
+              ? ElevatedButton(
+                  onPressed: () async {
+                    await _auth.migrateDataToCollege(collection, _managedCollegeId!);
+                    if (!context.mounted) return;
+                    setState(() {}); // Refresh
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Migrated $count $label items")));
+                  },
+                  child: const Text("Migrate"),
+                )
+              : const Icon(Icons.check_circle, color: Colors.green),
+          ),
+        );
+      },
+    );
+  }
+
+  // --- ADD USER TAB --- (Updated with College Scoping)
   Widget _buildAddUserTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Register New User", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text("Register New User for $_managedCollegeName", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           TextField(controller: _nameCtrl, decoration: const InputDecoration(labelText: "Full Name", border: OutlineInputBorder())),
           const SizedBox(height: 16),
@@ -170,6 +304,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             items: const [
               DropdownMenuItem(value: 'student', child: Text("Student")),
               DropdownMenuItem(value: 'teacher', child: Text("Teacher")),
+              DropdownMenuItem(value: 'librarian', child: Text("Librarian")),
               DropdownMenuItem(value: 'retailer', child: Text("Retailer (Canteen)")),
             ],
             onChanged: (val) => setState(() { 
@@ -178,17 +313,17 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               _selectedBatchName = null; 
             }),
           ),
-          if (_selectedRole != 'retailer') ...[
+          if (_selectedRole != 'retailer' && _selectedRole != 'librarian') ...[
             const SizedBox(height: 16),
             StreamBuilder<QuerySnapshot>(
-              stream: _auth.getBranches(),
+              stream: _auth.getBranches(collegeId: _managedCollegeId),
               builder: (context, snap) {
                 if (!snap.hasData) return const LinearProgressIndicator();
                 var branches = snap.data!.docs;
                 return DropdownButtonFormField<String>(
                   value: _selectedBranchId,
                   decoration: const InputDecoration(labelText: "Select Branch", border: OutlineInputBorder()),
-                  items: branches.map((doc) => DropdownMenuItem(value: doc.id, child: Text(doc.id))).toList(),
+                  items: branches.map((doc) => DropdownMenuItem(value: doc.id, child: Text(doc.get('branchId') ?? doc.id))).toList(),
                   onChanged: (val) => setState(() { _selectedBranchId = val; _selectedBatchName = null; }),
                 );
               },
@@ -197,7 +332,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           if (_selectedRole == 'student' && _selectedBranchId != null) ...[
             const SizedBox(height: 16),
             StreamBuilder<QuerySnapshot>(
-              stream: _auth.getBatchesByBranch(_selectedBranchId!),
+              stream: _auth.getBatchesByBranch(_selectedBranchId!, collegeId: _managedCollegeId),
               builder: (context, snap) {
                 if (!snap.hasData) return const LinearProgressIndicator();
                 var batches = snap.data!.docs;
@@ -228,7 +363,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       messenger.showSnackBar(const SnackBar(content: Text("Please fill all required fields")));
       return;
     }
-    if (_selectedRole != 'retailer' && _selectedBranchId == null) {
+    if (_selectedRole != 'retailer' && _selectedRole != 'librarian' && _selectedBranchId == null) {
       messenger.showSnackBar(const SnackBar(content: Text("Please select a branch")));
       return;
     }
@@ -242,16 +377,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         role: _selectedRole,
         branch: _selectedBranchId,
         batch: _selectedBatchName,
+        collegeId: _managedCollegeId,
       );
       
-      // If it's a retailer, we mark their profile as complete automatically
-      if (_selectedRole == 'retailer') {
-        final users = await _auth.getAllUsers().first;
-        final newUser = users.firstWhere((u) => u.email == _emailCtrl.text.trim());
-        newUser.profileComplete = true;
-        await _auth.updateProfile(newUser);
-      }
-
       messenger.showSnackBar(const SnackBar(content: Text("User Created Successfully!")));
       _nameCtrl.clear(); _emailCtrl.clear();
     } catch (e) {
@@ -261,7 +389,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     }
   }
 
-  // --- 2. BRANCHES TAB ---
+  // --- BRANCHES TAB ---
   Widget _buildBranchesTab() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -279,8 +407,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   const SizedBox(height: 10),
                   ElevatedButton(
                     onPressed: () async {
-                      if (_branchIdCtrl.text.isEmpty) return;
-                      await _auth.addBranch(_branchIdCtrl.text, _branchNameCtrl.text);
+                      if (_branchIdCtrl.text.isEmpty || _managedCollegeId == null) return;
+                      await _auth.addBranch(_branchIdCtrl.text, _branchNameCtrl.text, _managedCollegeId!);
                       _branchIdCtrl.clear(); _branchNameCtrl.clear();
                     },
                     child: const Text("Add Branch"),
@@ -289,13 +417,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ),
             ),
           ),
-          const Expanded(child: _BranchList())
+          Expanded(child: _BranchList(collegeId: _managedCollegeId))
         ],
       ),
     );
   }
 
-  // --- 3. BATCHES TAB ---
+  // --- BATCHES TAB ---
   Widget _buildBatchesTab() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -306,15 +434,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  const Text("Create New Batch (Max 4 per Branch)", style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text("Create New Batch", style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   StreamBuilder<QuerySnapshot>(
-                    stream: _auth.getBranches(),
+                    stream: _auth.getBranches(collegeId: _managedCollegeId),
                     builder: (context, snap) {
                       if (!snap.hasData) return const CircularProgressIndicator();
                       return DropdownButtonFormField<String>(
                         hint: const Text("Select Branch"),
-                        items: snap.data!.docs.map((doc) => DropdownMenuItem(value: doc.id, child: Text(doc.id))).toList(),
+                        items: snap.data!.docs.map((doc) => DropdownMenuItem(value: doc.id, child: Text(doc.get('branchId') ?? doc.id))).toList(),
                         onChanged: (val) => _selectedBranchId = val,
                       );
                     },
@@ -323,7 +451,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   TextField(controller: _batchYearCtrl, decoration: const InputDecoration(labelText: "Year")),
                   const SizedBox(height: 10),
                   StreamBuilder<List<UserModel>>(
-                    stream: _auth.getTeachers(),
+                    stream: _auth.getTeachers(collegeId: _managedCollegeId),
                     builder: (context, snap) {
                       if (!snap.hasData) return const LinearProgressIndicator();
                       return DropdownButtonFormField<String>(
@@ -337,12 +465,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   ElevatedButton(
                     onPressed: () async {
                       final messenger = ScaffoldMessenger.of(context);
-                      if (_selectedBranchId == null || _batchLetterCtrl.text.isEmpty) return;
+                      if (_selectedBranchId == null || _batchLetterCtrl.text.isEmpty || _managedCollegeId == null) return;
                       try {
                         await _auth.createBatch(
                           _selectedBranchId!, 
                           _batchLetterCtrl.text.toUpperCase(), 
                           int.parse(_batchYearCtrl.text),
+                          _managedCollegeId!,
                           coordinatorId: _selectedCoordinatorId,
                         );
                         messenger.showSnackBar(const SnackBar(content: Text("Batch Created!")));
@@ -356,61 +485,98 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ),
             ),
           ),
-          const Expanded(child: _BatchListDisplay()),
+          Expanded(child: _BatchListDisplay(collegeId: _managedCollegeId)),
         ],
       ),
     );
   }
 
-  Widget _buildUnassignedBatchesTab() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('batches').snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        
-        // Filter: coordinatorId is null OR doesn't exist (handles old batches)
-        final batches = snapshot.data!.docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return !data.containsKey('coordinatorId') || data['coordinatorId'] == null;
-        }).toList();
+  Widget _buildLibraryTab() { 
+    return LibraryManagementScreen(collegeId: _managedCollegeId); 
+  }
 
-        if (batches.isEmpty) return const Center(child: Text("No unassigned batches."));
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: batches.length,
-          itemBuilder: (context, index) {
-            final batch = batches[index];
-            final data = batch.data() as Map<String, dynamic>;
-            return Card(
-              child: ListTile(
-                title: Text(data['fullName'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text("Branch: ${data['branchId'] ?? 'N/A'}"),
-                trailing: ElevatedButton(
-                  onPressed: () => _showAssignCoordinatorDialog(batch.id, data['fullName'] ?? 'N/A'),
-                  child: const Text("Assign"),
-                ),
-              ),
-            );
-          },
-        );
-      },
+  Widget _buildFeesTab() { 
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        ListTile(
+          leading: const Icon(Icons.account_balance_wallet, color: Colors.indigo),
+          title: const Text("Set College Fees"),
+          subtitle: const Text("Manage semester-wise college fees"),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminCollegeFeeScreen())),
+        ),
+        const Divider(),
+        ListTile(
+          leading: const Icon(Icons.assignment, color: Colors.indigo),
+          title: const Text("Set Exam Fees"),
+          subtitle: const Text("Manage semester-wise exam fees"),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminExamFeeScreen())),
+        ),
+      ],
     );
   }
 
-  void _showAssignCoordinatorDialog(String batchId, String batchName) {
+  Widget _buildUnassignedBatchesTab() { 
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text(
+            "Batches without a Coordinator",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('batches')
+                .where('collegeId', isEqualTo: _managedCollegeId)
+                .where('coordinatorId', isNull: true)
+                .snapshots(),
+            builder: (context, snap) {
+              if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+              if (snap.data!.docs.isEmpty) {
+                return const Center(child: Text("All batches have coordinators assigned."));
+              }
+              return ListView.builder(
+                itemCount: snap.data!.docs.length,
+                itemBuilder: (context, i) {
+                  var data = snap.data!.docs[i].data() as Map<String, dynamic>;
+                  return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: ListTile(
+                      title: Text(data['fullName'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text("Branch: ${data['branchId']} | Year: ${data['year']}"),
+                      trailing: ElevatedButton(
+                        onPressed: () => _showAssignCoordinatorDialog(snap.data!.docs[i].id),
+                        child: const Text("Assign"),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAssignCoordinatorDialog(String batchId) {
     UserModel? selectedTeacher;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text("Assign Coordinator for $batchName"),
+        title: const Text("Assign Coordinator"),
         content: StreamBuilder<List<UserModel>>(
-          stream: _auth.getTeachers(),
+          stream: _auth.getTeachers(collegeId: _managedCollegeId),
           builder: (context, snap) {
             if (!snap.hasData) return const CircularProgressIndicator();
             return DropdownButtonFormField<UserModel>(
               hint: const Text("Select Teacher"),
-              items: snap.data!.map((teacher) => DropdownMenuItem(value: teacher, child: Text(teacher.fullName))).toList(),
+              items: snap.data!.map((t) => DropdownMenuItem(value: t, child: Text(t.fullName))).toList(),
               onChanged: (val) => selectedTeacher = val,
             );
           },
@@ -420,14 +586,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ElevatedButton(
             onPressed: () async {
               if (selectedTeacher != null) {
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(ctx);
                 try {
                   await _auth.assignCoordinator(batchId, selectedTeacher!.uid);
-                  if (ctx.mounted) navigator.pop();
-                  messenger.showSnackBar(const SnackBar(content: Text("Coordinator Assigned!")));
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Coordinator assigned!")));
                 } catch (e) {
-                  messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+                  if (ctx.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
                 }
               }
             },
@@ -437,8 +601,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       ),
     );
   }
-
-  // --- 4. SUBJECTS TAB ---
+  
+  // --- SUBJECTS TAB ---
   Widget _buildSubjectsTab() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -455,12 +619,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     children: [
                       Expanded(
                         child: StreamBuilder<QuerySnapshot>(
-                          stream: _auth.getBranches(),
+                          stream: _auth.getBranches(collegeId: _managedCollegeId),
                           builder: (context, snap) {
                             if (!snap.hasData) return const LinearProgressIndicator();
                             return DropdownButtonFormField<String>(
                               hint: const Text("Branch"),
-                              items: snap.data!.docs.map((doc) => DropdownMenuItem(value: doc.id, child: Text(doc.id))).toList(),
+                              items: snap.data!.docs.map((doc) => DropdownMenuItem(value: doc.id, child: Text(doc.get('branchId') ?? doc.id))).toList(),
                               onChanged: (val) => setState(() => _selectedBranchId = val),
                             );
                           },
@@ -482,8 +646,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   const SizedBox(height: 10),
                   ElevatedButton(
                     onPressed: () async {
-                      if (_selectedBranchId == null || _subjectNameCtrl.text.isEmpty) return;
-                      await _auth.addSubject(_selectedBranchId!, _selectedSemester, _subjectNameCtrl.text.trim());
+                      if (_selectedBranchId == null || _subjectNameCtrl.text.isEmpty || _managedCollegeId == null) return;
+                      await _auth.addSubject(_selectedBranchId!, _selectedSemester, _subjectNameCtrl.text.trim(), _managedCollegeId!);
                       _subjectNameCtrl.clear();
                       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Subject Added!")));
                     },
@@ -493,16 +657,37 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ),
             ),
           ),
-          const Expanded(child: _SubjectListDisplay()),
+          Expanded(child: _SubjectListDisplay(collegeId: _managedCollegeId)),
         ],
       ),
     );
   }
 
-  // --- 5. VIEW USERS TAB ---
+  Widget _buildExaminationTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        ListTile(
+          leading: const Icon(Icons.assignment_ind_rounded, color: Colors.indigo),
+          title: const Text("Manage Exam Forms"),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminExamFormScreen(collegeId: _managedCollegeId))),
+        ),
+        const Divider(),
+        ListTile(
+          leading: const Icon(Icons.calendar_month_rounded, color: Colors.indigo),
+          title: const Text("Set Exam Timetable"),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminExamTimetableScreen(collegeId: _managedCollegeId))),
+        ),
+      ],
+    );
+  }
+
+  // --- VIEW USERS TAB ---
   Widget _buildViewUsersTab() {
     return StreamBuilder<List<UserModel>>(
-      stream: _auth.getAllUsers(),
+      stream: _auth.getAllUsers(collegeId: _managedCollegeId),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final users = snapshot.data!.where((u) => u.role != 'admin').toList();
@@ -514,20 +699,64 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: user.role == 'teacher' ? Colors.orange : (user.role == 'retailer' ? Colors.green : Colors.blue), 
+                  backgroundColor: user.role == 'teacher' ? Colors.orange : (user.role == 'retailer' ? Colors.green : (user.role == 'librarian' ? Colors.indigo : Colors.blue)), 
                   child: Text(user.role[0].toUpperCase(), style: const TextStyle(color: Colors.white)),
                 ),
                 title: Text(user.fullName),
-                subtitle: Text("${user.role.toUpperCase()} ${user.role != 'retailer' ? '| Branch: ${user.branch ?? 'N/A'}' : ''} ${user.role == 'student' ? '| Batch: ${user.batch ?? 'N/A'}' : ''}"),
-                trailing: user.role == 'teacher' ? IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.indigo),
-                  onPressed: () => _showEditTeacherBranchDialog(user),
-                ) : null,
+                subtitle: Text("${user.role.toUpperCase()} | ${user.branch ?? 'No Branch'}"),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.transfer_within_a_station, color: Colors.blue),
+                      onPressed: () => _showChangeCollegeDialog(user),
+                      tooltip: "Change College",
+                    ),
+                    if (user.role == 'teacher')
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.indigo),
+                      onPressed: () => _showEditTeacherBranchDialog(user),
+                    ),
+                  ],
+                ),
               ),
             );
           },
         );
       },
+    );
+  }
+
+  void _showChangeCollegeDialog(UserModel user) {
+    CollegeModel? selectedCol;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Transfer ${user.fullName} to College"),
+        content: StreamBuilder<List<CollegeModel>>(
+          stream: _auth.getColleges(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return const CircularProgressIndicator();
+            return DropdownButtonFormField<CollegeModel>(
+              hint: const Text("Select Target College"),
+              items: snapshot.data!.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
+              onChanged: (val) => selectedCol = val,
+            );
+          },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              if (selectedCol != null) {
+                await _auth.updateTeacherCollege(user.uid, selectedCol!.id);
+                if (ctx.mounted) Navigator.pop(ctx);
+              }
+            },
+            child: const Text("Transfer"),
+          )
+        ],
+      ),
     );
   }
 
@@ -538,12 +767,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       builder: (ctx) => AlertDialog(
         title: Text("Change Branch for ${user.fullName}"),
         content: StreamBuilder<QuerySnapshot>(
-          stream: _auth.getBranches(),
+          stream: _auth.getBranches(collegeId: _managedCollegeId),
           builder: (context, snap) {
             if (!snap.hasData) return const CircularProgressIndicator();
             return DropdownButtonFormField<String>(
               value: user.branch,
-              items: snap.data!.docs.map((doc) => DropdownMenuItem(value: doc.id, child: Text(doc.id))).toList(),
+              items: snap.data!.docs.map((doc) => DropdownMenuItem(value: doc.id, child: Text(doc.get('branchId') ?? doc.id))).toList(),
               onChanged: (val) => tempBranch = val,
             );
           },
@@ -566,7 +795,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Widget _buildRequestsTab() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _auth.getPendingRequests(),
+      stream: _auth.getPendingRequestsByCollege(_managedCollegeId),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         return ListView.builder(
@@ -590,11 +819,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 }
 
 class _BranchList extends StatelessWidget {
-  const _BranchList();
+  final String? collegeId;
+  const _BranchList({this.collegeId});
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: AuthService().getBranches(),
+      stream: AuthService().getBranches(collegeId: collegeId),
       builder: (context, snap) {
         if (!snap.hasData) return const SizedBox();
         return ListView.builder(
@@ -603,9 +833,9 @@ class _BranchList extends StatelessWidget {
             var doc = snap.data!.docs[i];
             var data = doc.data() as Map<String, dynamic>;
             return ListTile(
-              title: Text(doc.id, style: const TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(data['branchId'] ?? doc.id, style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text(data['name'] ?? 'N/A'),
-              trailing: Text("Batches: ${data['batchCount'] ?? 0}/4"),
+              trailing: Text("Batches: ${data['batchCount'] ?? 0}/20"),
             );
           },
         );
@@ -615,11 +845,15 @@ class _BranchList extends StatelessWidget {
 }
 
 class _BatchListDisplay extends StatelessWidget {
-  const _BatchListDisplay();
+  final String? collegeId;
+  const _BatchListDisplay({this.collegeId});
   @override
   Widget build(BuildContext context) {
+    Query query = FirebaseFirestore.instance.collection('batches').orderBy('createdAt', descending: true);
+    if (collegeId != null) query = query.where('collegeId', isEqualTo: collegeId);
+
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('batches').orderBy('createdAt', descending: true).snapshots(),
+      stream: query.snapshots(),
       builder: (context, snap) {
         if (!snap.hasData) return const SizedBox();
         return ListView.builder(
@@ -652,11 +886,15 @@ class _BatchListDisplay extends StatelessWidget {
 }
 
 class _SubjectListDisplay extends StatelessWidget {
-  const _SubjectListDisplay();
+  final String? collegeId;
+  const _SubjectListDisplay({this.collegeId});
   @override
   Widget build(BuildContext context) {
+    Query query = FirebaseFirestore.instance.collection('subjects').orderBy('createdAt', descending: true);
+    if (collegeId != null) query = query.where('collegeId', isEqualTo: collegeId);
+    
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('subjects').orderBy('createdAt', descending: true).snapshots(),
+      stream: query.snapshots(),
       builder: (context, snap) {
         if (!snap.hasData) return const SizedBox();
         return ListView.builder(

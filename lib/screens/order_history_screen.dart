@@ -74,6 +74,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
               final orderDocId = docs[index].id;
               final items = List<Map<String, dynamic>>.from(order['items'] ?? []);
               final status = order['status'] ?? 'pending';
+              final paymentMethod = order['paymentMethod'] ?? 'Cash';
+              final paymentStatus = order['paymentStatus'] ?? 'Pending';
+              final transactionId = order['transactionId'];
               final Timestamp? timestamp = order['timestamp'] as Timestamp?;
               final formattedDate = timestamp != null 
                   ? DateFormat('dd MMM yyyy, hh:mm a').format(timestamp.toDate())
@@ -98,6 +101,22 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                           _buildStatusChip(status),
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("Payment: $paymentMethod", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          Text(paymentStatus, 
+                            style: TextStyle(
+                              fontSize: 12, 
+                              fontWeight: FontWeight.bold,
+                              color: paymentStatus == 'Completed' ? Colors.green : Colors.orange
+                            )
+                          ),
+                        ],
+                      ),
+                      if (transactionId != null)
+                        Text("Txn ID: $transactionId", style: const TextStyle(fontSize: 10, color: Colors.grey)),
                       const Divider(height: 24),
                       ...items.map((item) => Padding(
                         padding: const EdgeInsets.only(bottom: 8),
@@ -117,7 +136,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(formattedDate, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                              if (_userRole == 'retailer')
+                              if (_userRole == 'retailer' || _userRole == 'admin')
                                 Text("By: ${order['userName'] ?? 'Unknown'}", style: const TextStyle(fontSize: 12)),
                             ],
                           ),
@@ -142,8 +161,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     Color color;
     switch (status.toLowerCase()) {
       case 'delivered':
-      case 'completed':
         color = Colors.green;
+        break;
+      case 'confirmed':
+        color = Colors.blue;
         break;
       case 'pending':
         color = Colors.orange;

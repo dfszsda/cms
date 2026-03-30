@@ -24,6 +24,7 @@ class ExamFormModel {
   final List<ExamSubject> subjects;
   final String status; // 'Pending', 'Confirmed', 'Rejected'
   final String? rejectReason;
+  final String? collegeId;
   final DateTime? updatedAt;
 
   ExamFormModel({
@@ -34,6 +35,7 @@ class ExamFormModel {
     required this.subjects,
     this.status = 'Pending',
     this.rejectReason,
+    this.collegeId,
     this.updatedAt,
   });
 
@@ -45,6 +47,7 @@ class ExamFormModel {
       'subjects': subjects.map((s) => s.toMap()).toList(),
       'status': status,
       'rejectReason': rejectReason,
+      'collegeId': collegeId,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -60,6 +63,7 @@ class ExamFormModel {
           .toList(),
       status: map['status'] ?? 'Pending',
       rejectReason: map['rejectReason'],
+      collegeId: map['collegeId'],
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
     );
   }

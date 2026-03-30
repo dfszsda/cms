@@ -5,7 +5,8 @@ import '../services/auth_service.dart';
 import 'package:intl/intl.dart';
 
 class AdminExamTimetableScreen extends StatefulWidget {
-  const AdminExamTimetableScreen({super.key});
+  final String? collegeId;
+  const AdminExamTimetableScreen({super.key, this.collegeId});
 
   @override
   State<AdminExamTimetableScreen> createState() => _AdminExamTimetableScreenState();
@@ -81,7 +82,7 @@ class _AdminExamTimetableScreenState extends State<AdminExamTimetableScreen> {
             content: Column(
               children: [
                 StreamBuilder<QuerySnapshot>(
-                  stream: _auth.getBranches(),
+                  stream: _auth.getBranches(collegeId: widget.collegeId),
                   builder: (context, snap) {
                     if (!snap.hasData) return const LinearProgressIndicator();
                     return DropdownButtonFormField<String>(
@@ -176,7 +177,7 @@ class _AdminExamTimetableScreenState extends State<AdminExamTimetableScreen> {
 
   Widget _buildAddExamSection() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _auth.getSubjects(_selectedBranch ?? '', _selectedSemester),
+      stream: _auth.getSubjects(_selectedBranch ?? '', _selectedSemester, collegeId: widget.collegeId),
       builder: (context, snap) {
         if (!snap.hasData) return const LinearProgressIndicator();
         final subjects = snap.data!.docs.map((d) => d['name'] as String).toList();
@@ -308,7 +309,7 @@ class _AdminExamTimetableScreenState extends State<AdminExamTimetableScreen> {
     final navigator = Navigator.of(context);
 
     try {
-      await _auth.setExamTimetable(timetable);
+      await _auth.setExamTimetable(timetable, widget.collegeId!);
       messenger.showSnackBar(const SnackBar(content: Text("Exam Timetable Published Successfully!")));
       navigator.pop();
     } catch (e) {

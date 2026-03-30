@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/canteen_service.dart';
 import '../services/auth_service.dart';
 import 'cart_screen.dart';
+import '../models/user_model.dart';
 
 class CanteenScreen extends StatefulWidget {
   const CanteenScreen({super.key});
@@ -19,8 +20,7 @@ class _CanteenScreenState extends State<CanteenScreen> {
   String _searchQuery = "";
   String _selectedCategory = "All";
   List<Map<String, dynamic>> _cartItems = [];
-  String? _userRole;
-  String? _userName;
+  UserModel? _currentUser;
 
   final List<Map<String, dynamic>> categories = [
     {'name': 'All', 'icon': Icons.all_inclusive, 'color': Colors.grey},
@@ -40,10 +40,9 @@ class _CanteenScreenState extends State<CanteenScreen> {
 
   Future<void> _loadUserInfo() async {
     final users = await _authService.getAllUsers().first;
-    final currentUser = users.firstWhere((u) => u.uid == _authService.currentUser?.uid);
+    final user = users.firstWhere((u) => u.uid == _authService.currentUser?.uid);
     setState(() {
-      _userRole = currentUser.role;
-      _userName = currentUser.fullName;
+      _currentUser = user;
     });
   }
 
@@ -66,6 +65,11 @@ class _CanteenScreenState extends State<CanteenScreen> {
   }
 
   void _showAddItemDialog({String? itemId, Map<String, dynamic>? existingData}) {
+    if (_currentUser?.collegeId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("College ID not found. Please relogin.")));
+        return;
+    }
+    
     final nameCtrl = TextEditingController(text: existingData?['name']);
     final priceCtrl = TextEditingController(text: existingData?['price']?.toString().replaceAll('₹', ''));
     String category = existingData?['category'] ?? 'Snacks';
@@ -101,7 +105,7 @@ class _CanteenScreenState extends State<CanteenScreen> {
                   'category': category,
                 };
                 if (itemId == null) {
-                  await _canteenService.addCanteenItem(data);
+                  await _canteenService.addCanteenItem(data, _currentUser!.collegeId!);
                 } else {
                   await _canteenService.updateCanteenItem(itemId, data);
                 }
@@ -117,12 +121,14 @@ class _CanteenScreenState extends State<CanteenScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_currentUser == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Canteen Menu"),
         centerTitle: true,
         actions: [
-          if (_userRole != 'retailer')
+          if (_currentUser!.role != 'retailer')
             Stack(
               children: [
                 IconButton(
@@ -133,8 +139,9 @@ class _CanteenScreenState extends State<CanteenScreen> {
                       MaterialPageRoute(
                         builder: (context) => CartScreen(
                           cartItems: _cartItems, 
-                          userName: _userName ?? "User",
-                          userRole: _userRole ?? "student",
+                          userName: _currentUser!.fullName,
+                          userRole: _currentUser!.role,
+                          collegeId: _currentUser!.collegeId!,
                         ),
                       ),
                     ).then((_) => setState(() {}));
@@ -201,7 +208,7 @@ class _CanteenScreenState extends State<CanteenScreen> {
           const Divider(),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: _canteenService.getCanteenItems(),
+              stream: _canteenService.getCanteenItems(collegeId: _currentUser!.collegeId),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 
@@ -232,7 +239,7 @@ class _CanteenScreenState extends State<CanteenScreen> {
                         ),
                         title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text(item['price'], style: const TextStyle(color: Colors.green)),
-                        trailing: _userRole == 'retailer'
+                        trailing: _currentUser!.role == 'retailer'
                             ? Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -259,7 +266,7 @@ class _CanteenScreenState extends State<CanteenScreen> {
           ),
         ],
       ),
-      floatingActionButton: _userRole == 'retailer'
+      floatingActionButton: _currentUser!.role == 'retailer'
           ? FloatingActionButton(
               onPressed: () => _showAddItemDialog(),
               child: const Icon(Icons.add),

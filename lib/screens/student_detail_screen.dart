@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import '../models/ufm_model.dart';
 import '../services/auth_service.dart';
 
 class StudentDetailScreen extends StatefulWidget {
@@ -44,15 +45,119 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (widget.student.isUfmBanned) _buildUfmWarning(theme),
                   _buildQuickStats(theme),
                   const SizedBox(height: 24),
                   _buildDetailSection(theme),
                   const SizedBox(height: 24),
-                  if (canEdit) _buildCoordinatorActions(theme),
+                  if (canEdit) ...[
+                    _buildCoordinatorActions(theme),
+                    const SizedBox(height: 16),
+                    _buildUfmAction(theme),
+                  ],
                   const SizedBox(height: 40),
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUfmWarning(ThemeData theme) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red[50],
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.red[200]!),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: Colors.red),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              "This student is currently banned due to UFM until ${widget.student.ufmBanUntil?.day}/${widget.student.ufmBanUntil?.month}/${widget.student.ufmBanUntil?.year}",
+              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUfmAction(ThemeData theme) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () => _showUfmReportDialog(),
+        icon: const Icon(Icons.report_problem_outlined, color: Colors.red),
+        label: const Text("Report UFM Case", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Colors.red),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
+  void _showUfmReportDialog() {
+    final reasonCtrl = TextEditingController();
+    final subjectCtrl = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text("Report UFM Case"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: subjectCtrl,
+              decoration: const InputDecoration(labelText: "Subject Name"),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonCtrl,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: "Reason/Description of Unfair Means"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () async {
+              if (subjectCtrl.text.isEmpty || reasonCtrl.text.isEmpty) return;
+              
+              final ufm = UfmModel(
+                studentId: widget.student.uid,
+                studentName: widget.student.fullName,
+                studentBranch: widget.student.branch ?? 'N/A',
+                studentSemester: widget.student.semester ?? 1,
+                teacherId: widget.viewer.uid,
+                teacherName: widget.viewer.fullName,
+                subjectName: subjectCtrl.text,
+                reason: reasonCtrl.text,
+                status: 'pending',
+                createdAt: DateTime.now(),
+              );
+
+              final messenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(dialogCtx);
+
+              await _auth.reportUfm(ufm);
+              if (mounted) {
+                navigator.pop();
+                messenger.showSnackBar(const SnackBar(content: Text("UFM Case reported to coordinator")));
+              }
+            },
+            child: const Text("Report Student"),
           ),
         ],
       ),
@@ -79,20 +184,15 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            // Background Gradient
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    theme.colorScheme.primary,
-                    theme.colorScheme.primary.withValues(alpha: 0.7),
-                  ],
+                  colors: [theme.colorScheme.primary, theme.colorScheme.primary.withValues(alpha: 0.7)],
                 ),
               ),
             ),
-            // Profile Image or Placeholder
             Center(
               child: Hero(
                 tag: 'student_profile_${widget.student.uid}',
@@ -101,23 +201,13 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      )
-                    ],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10))],
                   ),
                   child: CircleAvatar(
                     radius: 60,
                     backgroundColor: Colors.grey[200],
-                    backgroundImage: widget.student.profilePic != null 
-                        ? NetworkImage(widget.student.profilePic!) 
-                        : null,
-                    child: widget.student.profilePic == null 
-                        ? Icon(Icons.person, size: 70, color: theme.colorScheme.primary) 
-                        : null,
+                    backgroundImage: widget.student.profilePic != null ? NetworkImage(widget.student.profilePic!) : null,
+                    child: widget.student.profilePic == null ? Icon(Icons.person, size: 70, color: theme.colorScheme.primary) : null,
                   ),
                 ),
               ),
@@ -147,13 +237,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            )
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Column(
           children: [
@@ -171,22 +255,13 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Personal Information",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+        const Text("Personal Information", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 16),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              )
-            ],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
           ),
           child: Column(
             children: [
@@ -213,10 +288,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.indigo.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
-            ),
+            decoration: BoxDecoration(color: Colors.indigo.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: Colors.indigo, size: 22),
           ),
           const SizedBox(width: 16),
@@ -226,11 +298,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               children: [
                 Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                 const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15), overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
@@ -245,27 +313,14 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Coordinator Controls",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+        const Text("Coordinator Controls", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.indigo[900]!, Colors.indigo[700]!],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            gradient: LinearGradient(colors: [Colors.indigo[900]!, Colors.indigo[700]!], begin: Alignment.topLeft, end: Alignment.bottomRight),
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.indigo.withValues(alpha: 0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
-              )
-            ],
+            boxShadow: [BoxShadow(color: Colors.indigo.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 8))],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -274,25 +329,15 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                 children: [
                   Icon(Icons.admin_panel_settings_outlined, color: Colors.white, size: 20),
                   SizedBox(width: 8),
-                  Text(
-                    "Management Tools",
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
+                  Text("Management Tools", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                 ],
               ),
               const SizedBox(height: 20),
-              const Text(
-                "Update Semester",
-                style: TextStyle(color: Colors.white70, fontSize: 13),
-              ),
+              const Text("Update Semester", style: TextStyle(color: Colors.white70, fontSize: 13)),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white24),
-                ),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white24)),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<int>(
                     value: _selectedSem,
@@ -300,9 +345,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                     dropdownColor: Colors.indigo[800],
                     icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    items: List.generate(8, (i) => i + 1)
-                        .map((s) => DropdownMenuItem(value: s, child: Text("Semester $s")))
-                        .toList(),
+                    items: List.generate(8, (i) => i + 1).map((s) => DropdownMenuItem(value: s, child: Text("Semester $s"))).toList(),
                     onChanged: (val) => setState(() => _selectedSem = val!),
                   ),
                 ),
@@ -313,13 +356,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () => _updateIndividualSem(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.indigo[900],
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
-                      ),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.indigo[900], padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
                       child: const Text("Update Student", style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
@@ -327,12 +364,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => _confirmBatchSemUpdate(),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.white70),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
+                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white70), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                       child: const Text("Entire Batch", style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
@@ -346,23 +378,14 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   }
 
   Future<void> _updateIndividualSem() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.white)),
-    );
-    
+    showDialog(context: context, barrierDismissible: false, builder: (ctx) => const Center(child: CircularProgressIndicator(color: Colors.white)));
     try {
+      final messenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
       await _auth.updateStudentSemester(widget.student.uid, _selectedSem);
       if (mounted) {
-        Navigator.pop(context); // Pop loader
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Semester updated for ${widget.student.fullName}"),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        navigator.pop();
+        messenger.showSnackBar(SnackBar(content: Text("Semester updated for ${widget.student.fullName}"), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
       }
     } catch (e) {
       if (mounted) {
@@ -377,43 +400,26 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange),
-            SizedBox(width: 10),
-            Text("Bulk Update"),
-          ],
-        ),
+        title: const Row(children: [Icon(Icons.warning_amber_rounded, color: Colors.orange), SizedBox(width: 10), Text("Bulk Update")]),
         content: Text("This will update ALL students in \"${widget.batchName}\" to Semester $_selectedSem. This action cannot be undone."),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(ctx);
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const Center(child: CircularProgressIndicator()),
-              );
+              final navigator = Navigator.of(ctx);
+              navigator.pop();
+              showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator()));
+              
+              final messenger = ScaffoldMessenger.of(context);
+              final outerNavigator = Navigator.of(context);
               
               await _auth.updateBatchSemester(widget.batchName, _selectedSem);
-              
               if (mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Batch semester updated successfully!"),
-                    backgroundColor: Colors.indigo,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+                outerNavigator.pop();
+                messenger.showSnackBar(const SnackBar(content: Text("Batch semester updated successfully!"), backgroundColor: Colors.indigo, behavior: SnackBarBehavior.floating));
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
             child: const Text("Update All"),
           ),
         ],
