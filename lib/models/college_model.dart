@@ -1,6 +1,7 @@
 class CollegeModel {
   final String id;
   final String name;
+  final  String shortName; // નવું ફિલ્ડ
   final String university;
   final String city;
   final String district;
@@ -11,6 +12,7 @@ class CollegeModel {
   CollegeModel({
     required this.id,
     required this.name,
+    required this.shortName,
     required this.university,
     required this.city,
     required this.district,
@@ -22,6 +24,7 @@ class CollegeModel {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
+      'shortName': shortName,
       'university': university,
       'city': city,
       'district': district,
@@ -35,6 +38,7 @@ class CollegeModel {
     return CollegeModel(
       id: id,
       name: map['name'] ?? '',
+      shortName: map['shortName'] ?? '',
       university: map['university'] ?? '',
       city: map['city'] ?? '',
       district: map['district'] ?? '',

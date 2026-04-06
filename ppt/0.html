@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Title Slide - CMS Project</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=Poppins:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+    <!-- Cropper.js for image cropping -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            overflow: hidden;
+        }
+        .slide-container {
+            position: relative;
+            width: 1280px;
+            height: 720px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .background-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.1;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .main-card {
+            width: 1100px;
+            height: 600px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 30px;
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            padding: 30px 50px 25px 50px; /* Reduced padding to lift content */
+            text-align: center;
+            position: relative;
+        }
+        .college-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #4f46e5;
+            padding-bottom: 12px;
+            margin-bottom: 30px; /* Reduced from 50px to lift content */
+            gap: 20px;
+        }
+        .logo-box {
+            width: 110px;
+            height: 110px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 2px dashed transparent;
+            border-radius: 12px;
+            transition: all 0.3s;
+            position: relative;
+            background: #f8fafc;
+            overflow: visible;
+        }
+        .logo-box:hover {
+            border-color: #4f46e5;
+            background: #eef2ff;
+        }
+        .logo-box img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            transition: transform 0.2s;
+        }
+        .logo-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .logo-placeholder i {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        .college-info {
+            flex: 1;
+        }
+        .college-name {
+            font-family: 'Poppins', sans-serif;
+            font-size: 26px;
+            font-weight: 700;
+            color: #1e293b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            line-height: 1.2;
+        }
+        .location {
+            font-size: 17px;
+            color: #64748b;
+            margin-top: 5px;
+        }
+        .project-title-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .project-label {
+            font-size: 18px;
+            color: #4f46e5;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+        .main-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 64px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+            line-height: 1.1;
+        }
+        .subtitle {
+            font-size: 22px;
+            color: #475569;
+            font-weight: 500;
+        }
+        .footer-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .info-box {
+            text-align: left;
+        }
+        .info-box.right {
+            text-align: right;
+        }
+        .label {
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .value {
+            font-family: 'Poppins', sans-serif;
+            font-size: 17px;
+            font-weight: 600;
+            color: #1e293b;
+            line-height: 1.4;
+        }
+        .mentor-name {
+            color: #4f46e5;
+        }
+
+        /* Modal Styles */
+        #logoModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            width: 600px;
+            max-height: 95vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .modal-header {
+            font-family: 'Poppins', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .option-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .input-group label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #475569;
+        }
+        .input-group input[type="text"] {
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .btn-upload {
+            padding: 12px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #475569;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* Cropping Area */
+        .crop-area {
+            display: none;
+            margin-top: 15px;
+        }
+        .img-container {
+            width: 100%;
+            height: 350px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        #croppingImage {
+            max-width: 100%;
+            display: block;
+        }
+        .size-control {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .size-control label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #475569;
+            display: flex;
+            justify-content: space-between;
+        }
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .modal-footer {
+            margin-top: 25px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-cancel { background: #f1f5f9; color: #475569; }
+        .btn-save { background: #4f46e5; color: white; }
+        .btn-delete { background: #fee2e2; color: #ef4444; margin-right: auto; }
+        .btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+<div class="slide-container">
+    <div class="background-pattern"></div>
+    <div class="main-card">
+        <div class="college-header">
+            <div class="logo-box" id="logo-left" onclick="openModal('left')">
+                <div class="logo-placeholder" id="placeholder-left">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>MBIT LOGO</span>
+                </div>
+                <img id="img-left" src="" alt="" style="display: none;">
+            </div>
+
+            <div class="college-info">
+                <h2 class="college-name">Madhuben & Bhanubhai Patel Institute of technology</h2>
+                <p class="location">New Vidhyanagar | CVM University</p>
+            </div>
+
+            <div class="logo-box" id="logo-right" onclick="openModal('right')">
+                <div class="logo-placeholder" id="placeholder-right">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>CVMU LOGO</span>
+                </div>
+                <img id="img-right" src="" alt="" style="display: none;">
+            </div>
+        </div>
+
+        <div class="project-title-container">
+            <p class="project-label">PROJECT PRESENTATION</p>
+            <h1 class="main-title">Mobile Application Development</h1>
+            <p class="subtitle">College Management System (CMS)</p>
+        </div>
+
+        <div class="footer-info">
+            <div class="info-box">
+                <p class="label">PRESENTED BY</p>
+                <p class="value">Gohil Harisinh Harikrushna</p>
+                <p class="value" style="font-size: 14px; color: #64748b;">ID: 12302080703007</p>
+            </div>
+            <div class="info-box right">
+                <p class="label">GUIDED BY</p>
+                <p class="value mentor-name">Pro. Harsh Goswam</p>
+                <p class="value" style="font-size: 14px; color: #64748b;">College Mentor</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Logo Editor Modal -->
+<div id="logoModal">
+    <div class="modal-content">
+        <div class="modal-header" id="modalTitle">Edit Logo</div>
+
+        <div id="selectionArea">
+            <div class="option-group">
+                <div class="input-group">
+                    <label>Upload from Computer</label>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFile(this)">
+                    <div class="btn-upload" onclick="document.getElementById('fileInput').click()">
+                        <i class="fas fa-file-upload"></i> Select Image
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>From Image Link (URL)</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="urlInput" placeholder="https://..." style="flex:1;">
+                        <button class="btn btn-save" onclick="handleUrl()">Load</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="crop-area" id="cropArea">
+            <div class="img-container">
+                <img id="croppingImage" src="">
+            </div>
+
+            <div class="size-control">
+                <label>Logo Size on Slide <span id="sizeVal">100%</span></label>
+                <input type="range" id="sizeRange" min="30" max="150" value="100" oninput="updateSizePreview(this.value)">
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-delete" id="btnRemove" onclick="removeLogo()" style="display:none;">Remove</button>
+            <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-save" id="btnSave" onclick="saveLogo()" disabled>Apply Logo</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentSide = 'left';
+    let cropper = null;
+
+    // Initialize UI from storage
+    window.onload = function() {
+        ['left', 'right'].forEach(side => {
+            const data = JSON.parse(localStorage.getItem('logo-data-' + side) || 'null');
+            if (data) {
+                updateUI(side, data.src, data.size);
+            }
+        });
+    };
+
+    function openModal(side) {
+        currentSide = side;
+        document.getElementById('modalTitle').innerText = 'Edit ' + (side === 'left' ? 'MBIT' : 'CVMU') + ' Logo';
+        document.getElementById('logoModal').style.display = 'flex';
+
+        const existing = localStorage.getItem('logo-data-' + side);
+        document.getElementById('btnRemove').style.display = existing ? 'block' : 'none';
+
+        // Reset modal state
+        document.getElementById('selectionArea').style.display = 'block';
+        document.getElementById('cropArea').style.display = 'none';
+        document.getElementById('btnSave').disabled = true;
+        document.getElementById('urlInput').value = '';
+        if (cropper) { cropper.destroy(); cropper = null; }
+    }
+
+    function closeModal() {
+        document.getElementById('logoModal').style.display = 'none';
+    }
+
+    function handleFile(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => initCropper(e.target.result);
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function handleUrl() {
+        const url = document.getElementById('urlInput').value.trim();
+        if (url) initCropper(url);
+    }
+
+    function initCropper(src) {
+        const img = document.getElementById('croppingImage');
+        img.src = src;
+        document.getElementById('selectionArea').style.display = 'none';
+        document.getElementById('cropArea').style.display = 'block';
+        document.getElementById('btnSave').disabled = false;
+
+        if (cropper) cropper.destroy();
+        cropper = new Cropper(img, {
+            aspectRatio: NaN,
+            viewMode: 1,
+            autoCropArea: 1
+        });
+    }
+
+    function updateSizePreview(val) {
+        document.getElementById('sizeVal').innerText = val + '%';
+    }
+
+    function saveLogo() {
+        const canvas = cropper.getCroppedCanvas({ maxWidth: 500, maxHeight: 500 });
+        const src = canvas.toDataURL('image/png');
+        const size = document.getElementById('sizeRange').value;
+
+        const data = { src, size };
+        localStorage.setItem('logo-data-' + currentSide, JSON.stringify(data));
+        updateUI(currentSide, src, size);
+        closeModal();
+    }
+
+    function removeLogo() {
+        localStorage.removeItem('logo-data-' + currentSide);
+        const img = document.getElementById('img-' + currentSide);
+        const placeholder = document.getElementById('placeholder-' + currentSide);
+        img.style.display = 'none';
+        placeholder.style.display = 'flex';
+        closeModal();
+    }
+
+    function updateUI(side, src, size) {
+        const img = document.getElementById('img-' + side);
+        const placeholder = document.getElementById('placeholder-' + side);
+        img.src = src;
+        img.style.display = 'block';
+        img.style.transform = `scale(${size/100})`;
+        placeholder.style.display = 'none';
+    }
+
+    window.onclick = e => {
+        if (e.target == document.getElementById('logoModal')) closeModal();
+    }
+</script>
+</body>
+</html>

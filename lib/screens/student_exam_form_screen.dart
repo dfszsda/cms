@@ -143,7 +143,7 @@ class _StudentExamFormScreenState extends State<StudentExamFormScreen> {
   void _handleConfirm(String formId) async {
     final messenger = ScaffoldMessenger.of(context);
     await _auth.updateExamFormStatus(formId, 'Confirmed');
-    if (!mounted) return;
+    if (!context.mounted) return;
     messenger.showSnackBar(const SnackBar(content: Text("Exam Form Confirmed!")));
   }
 
@@ -171,10 +171,11 @@ class _StudentExamFormScreenState extends State<StudentExamFormScreen> {
               
               await _auth.updateExamFormStatus(formId, 'Rejected', reason: _reasonCtrl.text.trim());
               
-              if (!mounted) return;
+              if (!ctx.mounted) return;
 
               navigator.pop();
               _reasonCtrl.clear();
+              if (!context.mounted) return;
               messenger.showSnackBar(const SnackBar(content: Text("Form Rejected and Admin notified.")));
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),

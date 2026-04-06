@@ -118,8 +118,9 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
                 final messenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(dialogContext);
                 await _auth.updateBatchSemester(batchName, newSem!);
-                if (!mounted) return;
+                if (!dialogContext.mounted) return;
                 navigator.pop();
+                if (!context.mounted) return;
                 messenger.showSnackBar(SnackBar(content: Text("Batch $batchName updated to Sem $newSem")));
               }
             },
@@ -150,8 +151,9 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
                 final messenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(dialogContext);
                 await _auth.updateStudentSemester(student.uid, newSem!);
-                if (!mounted) return;
+                if (!dialogContext.mounted) return;
                 navigator.pop();
+                if (!context.mounted) return;
                 messenger.showSnackBar(SnackBar(content: Text("${student.fullName} updated to Sem $newSem")));
               }
             },

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMS Project - Presentation Dashboard</title>
+    <!-- PptxGenJS and html2canvas for PPT generation -->
+    <script src="https://cdn.jsdelivr.net/gh/gitbrent/PptxGenJS@3.12.0/dist/pptxgen.bundle.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .navbar {
+            width: 100%;
+            padding: 15px 30px;
+            background: #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-bottom: 1px solid #334155;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 700;
+            color: #818cf8;
+        }
+        .btn-group {
+            display: flex;
+            gap: 12px;
+        }
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #4338ca;
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background: #334155;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #475569;
+        }
+        .btn-zoho {
+            background: #eab308;
+            color: #000;
+        }
+        .btn-zoho:hover {
+            background: #ca8a04;
+        }
+        #slides-container {
+            width: 100%;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 60px;
+        }
+        .slide-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        .slide-label {
+            font-size: 14px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        .slide-frame-container {
+            width: 1280px;
+            height: 720px;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid #334155;
+            transform: scale(0.7);
+            transform-origin: top center;
+            margin-bottom: -150px; /* Offset for scaling */
+        }
+        @media (max-width: 1300px) {
+            .slide-frame-container {
+                transform: scale(0.5);
+                margin-bottom: -300px;
+            }
+        }
+        @media (max-width: 768px) {
+            .slide-frame-container {
+                transform: scale(0.3);
+                margin-bottom: -450px;
+            }
+        }
+        iframe {
+            width: 1280px;
+            height: 720px;
+            border: none;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid #1e293b;
+            border-top: 6px solid #6366f1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #loading-status {
+            margin-top: 24px;
+            font-size: 18px;
+            color: #e2e8f0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <i class="fas fa-university"></i>
+            <span>CMS Presentation</span>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-secondary" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+                <i class="fas fa-arrow-up"></i> Top
+            </button>
+            <button class="btn btn-primary" onclick="generatePPT()">
+                <i class="fas fa-file-powerpoint"></i> Download PPTX
+            </button>
+            <a href="https://show.zoho.com/home/import" target="_blank" class="btn btn-zoho">
+                <i class="fas fa-external-link-alt"></i> Import to Zoho
+            </a>
+        </div>
+    </nav>
+
+    <div id="slides-container">
+        <!-- Slides will be injected here -->
+    </div>
+
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <div id="loading-status">
+            <h3>Generating Presentation</h3>
+            <p id="progress-text">Initializing...</p>
+        </div>
+    </div>
+
+    <script>
+        const totalSlides = 11;
+        const container = document.getElementById('slides-container');
+
+        // Create slide previews including Title Slide (0.html)
+        for (let i = 0; i <= totalSlides; i++) {
+            const slideCard = document.createElement('div');
+            slideCard.className = 'slide-card';
+
+            const label = document.createElement('div');
+            label.className = 'slide-label';
+            label.innerText = i === 0 ? 'Title Slide' : `Slide ${i}`;
+
+            const frameContainer = document.createElement('div');
+            frameContainer.className = 'slide-frame-container';
+
+            const iframe = document.createElement('iframe');
+            iframe.src = `${i}.html`;
+            iframe.id = `slide-frame-${i}`;
+            iframe.loading = 'lazy';
+
+            frameContainer.appendChild(iframe);
+            slideCard.appendChild(label);
+            slideCard.appendChild(frameContainer);
+            container.appendChild(slideCard);
+        }
+
+        async function generatePPT() {
+            const loading = document.getElementById('loading');
+            const progressText = document.getElementById('progress-text');
+            loading.style.display = 'flex';
+
+            try {
+                const pptx = new PptxGenJS();
+                pptx.layout = 'LAYOUT_WIDE'; // Standard 16:9 widescreen
+
+                // Set metadata
+                pptx.author = 'College Management System';
+                pptx.company = 'CMS';
+                pptx.title = 'CMS Project Presentation';
+
+                for (let i = 0; i <= totalSlides; i++) {
+                    progressText.innerText = `Capturing Slide ${i + 1} of ${totalSlides + 1}...`;
+
+                    const iframe = document.getElementById(`slide-frame-${i}`);
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+                    // Wait for styles/images in iframe to be ready
+                    await new Promise(resolve => setTimeout(resolve, 800));
+
+                    const slideElement = iframeDoc.querySelector('.slide-container') || iframeDoc.body;
+
+                    const canvas = await html2canvas(slideElement, {
+                        width: 1280,
+                        height: 720,
+                        scale: 2, // 2x scale for high resolution
+                        useCORS: true,
+                        backgroundColor: null,
+                        logging: false
+                    });
+
+                    const imgData = canvas.toDataURL('image/png');
+                    const slide = pptx.addSlide();
+                    slide.addImage({
+                        data: imgData,
+                        x: 0,
+                        y: 0,
+                        w: '100%',
+                        h: '100%'
+                    });
+                }
+
+                progressText.innerText = 'Finalizing and starting download...';
+                pptx.writeFile({ fileName: 'CMS_Project_Presentation.pptx' });
+
+                setTimeout(() => {
+                    loading.style.display = 'none';
+                }, 2000);
+
+            } catch (error) {
+                console.error('PPT Generation Error:', error);
+                alert('An error occurred while generating the PPT. Please make sure all slide files (0.html to 11.html) are in the same folder.');
+                loading.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

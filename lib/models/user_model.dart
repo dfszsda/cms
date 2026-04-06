@@ -22,6 +22,15 @@ class UserModel {
   String? branch; 
   String? collegeId; // NEW: Multi-college isolation
   
+  // Getter to get only the branch name (removes the ID prefix if present)
+  String get branchName {
+    if (branch == null) return 'N/A';
+    if (branch!.contains('_')) {
+      return branch!.split('_').last;
+    }
+    return branch!;
+  }
+  
   // UFM Fields
   bool isUfmBanned;
   DateTime? ufmBanUntil;

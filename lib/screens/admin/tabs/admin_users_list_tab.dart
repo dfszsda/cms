@@ -44,7 +44,7 @@ class _AdminUsersListTabState extends State<AdminUsersListTab> {
                     child: Text(user.role[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                   title: Text(user.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("${user.role.toUpperCase()} | ${user.branch ?? 'No Branch'}"),
+                  subtitle: Text("${user.role.toUpperCase()} | ${user.branchName}"),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -128,7 +128,10 @@ class _AdminUsersListTabState extends State<AdminUsersListTab> {
             return DropdownButtonFormField<String>(
               value: user.branch,
               decoration: const InputDecoration(labelText: "Select Branch", border: OutlineInputBorder()),
-              items: snap.data!.docs.map((doc) => DropdownMenuItem(value: doc.id, child: Text(doc.get('branchId') ?? doc.id))).toList(),
+              items: snap.data!.docs.map((doc) {
+                final name = doc.get('name') ?? doc.get('branchId') ?? doc.id;
+                return DropdownMenuItem(value: doc.id, child: Text(name));
+              }).toList(),
               onChanged: (val) => tempBranch = val,
             );
           },

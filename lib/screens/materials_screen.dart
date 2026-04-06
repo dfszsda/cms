@@ -66,20 +66,19 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
             'uploadedAt': FieldValue.serverTimestamp(),
           });
           
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("File uploaded and saved successfully!")),
-            );
-          }
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("File uploaded and saved successfully!")),
+          );
         } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Drive upload success, but Firestore error: $e")),
-            );
-          }
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Drive upload success, but Firestore error: $e")),
+          );
         }
         _fetchFiles();
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Failed to upload file.")),
         );

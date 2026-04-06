@@ -150,7 +150,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
 
         final filteredList = snapshot.data!.where((user) {
           final matchesSearch = user.fullName.toLowerCase().contains(_searchQuery) ||
-              (user.branch ?? "").toLowerCase().contains(_searchQuery) ||
+              user.branchName.toLowerCase().contains(_searchQuery) ||
               user.role.toLowerCase().contains(_searchQuery);
           
           final matchesRole = _filterRole == "All" || 
@@ -245,7 +245,7 @@ class _StaffCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       if (user.branch != null)
                         Text(
-                          user.branch!,
+                          user.branchName,
                           style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                       const SizedBox(height: 12),

@@ -10,6 +10,7 @@ import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'teachers_list_screen.dart';
 import 'students_section_screen.dart';
+import 'exam_dashboard_screen.dart';
 import 'canteen_screen.dart';
 import 'college_info_screen.dart';
 import 'attendance_screen.dart';
@@ -137,6 +138,42 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
                       _buildInfoChip(theme, Icons.school, "Sem ${_currentUser?.semester ?? 'N/A'}"),
                       const SizedBox(width: 12),
                       _buildInfoChip(theme, Icons.qr_code, "Batch: ${_currentUser?.batch ?? 'N/A'}"),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      _buildInfoChip(theme, Icons.account_tree_outlined, "Branch: ${_currentUser?.branchName ?? 'N/A'}"),
+                      const SizedBox(width: 12),
+                      StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('results')
+                            .where('studentId', isEqualTo: _currentUser?.uid)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          int atktCount = 0;
+                          if (snapshot.hasData) {
+                            Map<String, bool> subjectStatus = {};
+                            for (var doc in snapshot.data!.docs) {
+                              final res = ResultModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+                              for (var sub in res.results) {
+                                String key = "${res.semester}_${sub.subjectName}";
+                                subjectStatus[key] = sub.isPass;
+                              }
+                            }
+                            atktCount = subjectStatus.values.where((isPass) => !isPass).length;
+                          }
+                          return InkWell(
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExamDashboardScreen(student: _currentUser!))),
+                            child: _buildInfoChip(
+                              theme, 
+                              Icons.warning_amber_rounded, 
+                              "ATKT: $atktCount",
+                              color: atktCount > 0 ? Colors.red : Colors.green,
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -322,19 +359,20 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
     );
   }
 
-  Widget _buildInfoChip(ThemeData theme, IconData icon, String label) {
+  Widget _buildInfoChip(ThemeData theme, IconData icon, String label, {Color? color}) {
+    Color mainColor = color ?? theme.colorScheme.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withOpacity(0.1),
+        color: mainColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: theme.colorScheme.primary),
+          Icon(icon, size: 16, color: mainColor),
           const SizedBox(width: 6),
-          Text(label, style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 13)),
+          Text(label, style: TextStyle(color: mainColor, fontWeight: FontWeight.bold, fontSize: 13)),
         ],
       ),
     );

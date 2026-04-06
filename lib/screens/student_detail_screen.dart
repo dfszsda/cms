@@ -138,7 +138,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               final ufm = UfmModel(
                 studentId: widget.student.uid,
                 studentName: widget.student.fullName,
-                studentBranch: widget.student.branch ?? 'N/A',
+                studentBranch: widget.student.branchName,
                 studentSemester: widget.student.semester ?? 1,
                 teacherId: widget.viewer.uid,
                 teacherName: widget.viewer.fullName,
@@ -269,7 +269,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               _divider(),
               _detailRow(Icons.phone_outlined, "Phone Number", widget.student.phone ?? 'N/A'),
               _divider(),
-              _detailRow(Icons.account_tree_outlined, "Department / Branch", widget.student.branch ?? 'N/A'),
+              _detailRow(Icons.account_tree_outlined, "Department / Branch", widget.student.branchName),
               _divider(),
               _detailRow(Icons.location_on_outlined, "Residential Address", widget.student.address ?? 'N/A'),
               _divider(),

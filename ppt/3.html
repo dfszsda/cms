@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>System Architecture - CMS Project</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=Poppins:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            overflow: hidden;
+        }
+        .slide-container {
+            position: relative;
+            width: 1280px;
+            height: 720px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .background-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.1;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .main-card {
+            position: absolute;
+            left: 50px;
+            top: 50px;
+            width: 1180px;
+            height: 620px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            padding: 20px 40px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .header-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        .header-text h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0;
+        }
+        .header-text p {
+            font-size: 14px;
+            opacity: 0.9;
+            margin: 3px 0 0 0;
+        }
+        .content {
+            flex: 1;
+            padding: 20px 40px;
+            display: flex;
+            flex-direction: column;
+        }
+        .diagram-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            position: relative;
+        }
+        .center-hub {
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 10px 30px rgba(79, 70, 229, 0.4);
+            z-index: 10;
+        }
+        .hub-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+        .hub-text {
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+        }
+        .hub-subtext {
+            font-size: 11px; /* Adjusted from 12px to 11px to ensure text fits comfortably and prevent overflow/tight padding as reported by automated detection. */
+            opacity: 0.8;
+        }
+        .user-role {
+            position: absolute;
+            width: 160px;
+            height: 100px;
+            background: white;
+            border-radius: 12px;
+            border: 2px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .user-role:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+        .role-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        .role-name {
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .role-desc {
+            font-size: 11px;
+            color: #6b7280;
+        }
+        .connection-line {
+            position: absolute;
+            height: 2px;
+            background: #4f46e5;
+            z-index: 5;
+        }
+        .data-flow {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: #f8fafc;
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 1px solid #e5e7eb;
+        }
+        .flow-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .flow-icon {
+            color: #4f46e5;
+        }
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .legend-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+<div class="slide-container">
+    <div class="background-pattern"></div>
+    <div class="main-card">
+        <div class="header">
+            <div class="header-left">
+                <div class="header-icon">
+                    <i class="fas fa-sitemap"></i>
+                </div>
+                <div class="header-text">
+                    <h1>System Architecture</h1>
+                    <p>Firebase-based architecture with four user roles</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <p>Real-time Sync</p>
+                <p>Secure Data Flow</p>
+            </div>
+        </div>
+        <div class="content">
+            <div class="diagram-container">
+                <!-- Center Hub -->
+                <div class="center-hub" style="left: 50%; top: 50%; transform: translate(-50%, -50%);">
+                    <div class="hub-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <div class="hub-text">Firebase</div>
+                    <div class="hub-subtext">Firestore + Auth</div>
+                </div>
+                <!-- User Roles -->
+                <!-- Admin -->
+                <div class="user-role" style="left: 100px; top: 80px;">
+                    <div class="role-icon" style="background: #fef3c7; color: #f59e0b;">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <div class="role-name">Admin</div>
+                    <div class="role-desc">User Management</div>
+                </div>
+                <!-- Student -->
+                <div class="user-role" style="right: 100px; top: 80px;">
+                    <div class="role-icon" style="background: #dbeafe; color: #3b82f6;">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div class="role-name">Student</div>
+                    <div class="role-desc">Fee &amp; Results</div>
+                </div>
+                <!-- Teacher -->
+                <div class="user-role" style="left: 100px; bottom: 80px;">
+                    <div class="role-icon" style="background: #d1fae5; color: #10b981;">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <div class="role-name">Teacher</div>
+                    <div class="role-desc">Attendance &amp; Marks</div>
+                </div>
+                <!-- Retailer -->
+                <div class="user-role" style="right: 100px; bottom: 80px;">
+                    <div class="role-icon" style="background: #fce7f3; color: #ec4899;">
+                        <i class="fas fa-store"></i>
+                    </div>
+                    <div class="role-name">Retailer</div>
+                    <div class="role-desc">Canteen Orders</div>
+                </div>
+                <!-- Connection Lines -->
+                <div class="connection-line" style="left: 260px; top: 130px; width: 350px; transform: rotate(25deg);"></div>
+                <div class="connection-line" style="right: 260px; top: 130px; width: 350px; transform: rotate(-25deg);"></div>
+                <div class="connection-line" style="left: 260px; bottom: 130px; width: 350px; transform: rotate(-25deg);"></div>
+                <div class="connection-line" style="right: 260px; bottom: 130px; width: 350px; transform: rotate(25deg);"></div>
+                <!-- Data Flow -->
+                <div class="data-flow">
+                    <div class="flow-item">
+                        <i class="fas fa-arrow-right flow-icon"></i>
+                        <span>App → Firebase</span>
+                    </div>
+                    <div class="flow-item">
+                        <i class="fas fa-sync flow-icon"></i>
+                        <span>Real-time Sync</span>
+                    </div>
+                    <div class="flow-item">
+                        <i class="fas fa-arrow-left flow-icon"></i>
+                        <span>Firebase → App</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div></body>
+</html>

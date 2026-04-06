@@ -75,7 +75,7 @@ class _AdminUnassignedTabState extends State<AdminUnassignedTab> {
         title: const Text("Assign Coordinator"),
         content: StreamBuilder<List<UserModel>>(
           stream: _auth.getTeachers(collegeId: widget.collegeId),
-          builder: (context, snap) {
+          builder: (ctx, snap) {
             if (!snap.hasData) return const CircularProgressIndicator();
             return DropdownButtonFormField<UserModel>(
               hint: const Text("Select Teacher"),
@@ -91,8 +91,9 @@ class _AdminUnassignedTabState extends State<AdminUnassignedTab> {
               if (selectedTeacher != null) {
                 try {
                   await _auth.assignCoordinator(batchId, selectedTeacher!.uid);
-                  if (!mounted) return;
+                  if (!ctx.mounted) return;
                   Navigator.pop(ctx);
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Coordinator assigned!")));
                 } catch (e) {
                   if (!mounted) return;

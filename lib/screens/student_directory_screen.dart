@@ -92,7 +92,14 @@ class _StudentDirectoryScreenState extends State<StudentDirectoryScreen> {
           return _buildSearchableDropdown<DocumentSnapshot>(
             hint: "Select Batch",
             items: batches,
-            itemLabel: (batch) => batch['fullName'],
+            itemLabel: (batch) {
+              final fullName = batch['fullName'] ?? '';
+              if (fullName.contains('-')) {
+                final parts = fullName.split('-');
+                if (parts.length >= 2) return parts[1];
+              }
+              return fullName;
+            },
             selectedValue: _selectedFilterValue is DocumentSnapshot ? _selectedFilterValue : null,
             onChanged: (val) => setState(() => _selectedFilterValue = val),
           );

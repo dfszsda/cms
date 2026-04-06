@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Student Module - CMS Project</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=Poppins:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            overflow: hidden;
+        }
+        .slide-container {
+            position: relative;
+            width: 1280px;
+            height: 720px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .background-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.1;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .main-card {
+            position: absolute;
+            left: 50px;
+            top: 50px;
+            width: 1180px;
+            height: 620px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            padding: 25px 40px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .header-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        .header-text h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0;
+        }
+        .header-text p {
+            font-size: 13px;
+            opacity: 0.9;
+            margin: 3px 0 0 0;
+        }
+        /* Fix: Align header-right text to the right for better visual balance */
+        .header-right {
+            text-align: right;
+        }
+        .content {
+            flex: 1;
+            padding: 25px 40px 20px 40px; /* Fix: Reduced padding-bottom from 25px to 20px to prevent overflow */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .section-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title i {
+            color: #4f46e5;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px; /* Fix: Reduced gap from 15px to 10px to prevent overflow */
+            margin-bottom: 10px; /* Fix: Reduced margin-bottom from 20px to 10px to prevent overflow */
+        }
+        .feature-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 10px 15px 20px 15px; /* Fix: Adjusted padding to 10px top, 20px bottom, 15px sides for better spacing and overflow fix */
+            border: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .feature-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            background: #e0e7ff;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4f46e5;
+            font-size: 16px;
+        }
+        .feature-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .feature-desc {
+            font-size: 12px;
+            color: #6b7280;
+            line-height: 1.2; /* Fix: Reduced line-height from 1.4 to 1.2 to prevent text overflow */
+        }
+        .feature-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .feature-tag {
+            background: #e0e7ff;
+            color: #4f46e5;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+        .stats-row {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px; /* Fix: Reduced margin-top from 15px to 10px to prevent overflow */
+        }
+        .stat-item {
+            flex: 1;
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #e5e7eb;
+        }
+        .stat-value {
+            font-family: 'Poppins', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: #4f46e5;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 3px;
+        }
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+            padding-top: 10px; /* Fix: Reduced padding-top from 15px to 10px to prevent overflow */
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .footer-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .footer-item i {
+            color: #4f46e5;
+        }
+    </style>
+</head>
+<body>
+<div class="slide-container">
+    <div class="background-pattern"></div>
+    <div class="main-card">
+        <div class="header">
+            <div class="header-left">
+                <div class="header-icon">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Student Module - CMS</h1>
+                    <p>Comprehensive student management features for college operations</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <p>Key Features</p>
+                <p style="font-size: 11px; opacity: 0.8;">6 Core Modules</p>
+            </div>
+        </div>
+        <div class="content">
+            <div class="section-title">
+                <i class="fas fa-book-reader"></i>
+                <span>Student Features Overview</span>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <div class="feature-title">Timetable &amp; Events</div>
+                    </div>
+                    <div class="feature-desc">View daily class schedules, exam timetables, and campus events with notifications.</div>
+                    <div class="feature-tags">
+                        <div class="feature-tag">Schedule</div>
+                        <div class="feature-tag">Events</div>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">
+                            <i class="fas fa-credit-card"></i>
+                        </div>
+                        <div class="feature-title">Fee Payment</div>
+                    </div>
+                    <div class="feature-desc">Pay exam and college fees securely using Razorpay integration with instant receipts.</div>
+                    <div class="feature-tags">
+                        <div class="feature-tag">Razorpay</div>
+                        <div class="feature-tag">Receipts</div>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div class="feature-title">Attendance &amp; Results</div>
+                    </div>
+                    <div class="feature-desc">Check daily attendance records and view semester-wise exam results.</div>
+                    <div class="feature-tags">
+                        <div class="feature-tag">Attendance</div>
+                        <div class="feature-tag">Results</div>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">
+                            <i class="fas fa-utensils"></i>
+                        </div>
+                        <div class="feature-title">Canteen Management</div>
+                    </div>
+                    <div class="feature-desc">Order food from canteen, track order status, and manage payments.</div>
+                    <div class="feature-tags">
+                        <div class="feature-tag">Orders</div>
+                        <div class="feature-tag">Payment</div>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">
+                            <i class="fas fa-file-download"></i>
+                        </div>
+                        <div class="feature-title">Materials &amp; Assignments</div>
+                    </div>
+                    <div class="feature-desc">Download study materials, assignments, and lecture notes easily.</div>
+                    <div class="feature-tags">
+                        <div class="feature-tag">Downloads</div>
+                        <div class="feature-tag">Notes</div>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-header">
+                        <div class="feature-icon">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <div class="feature-title">Notifications</div>
+                    </div>
+                    <div class="feature-desc">Get instant notifications for fees, events, and important updates.</div>
+                    <div class="feature-tags">
+                        <div class="feature-tag">Alerts</div>
+                        <div class="feature-tag">Updates</div>
+                    </div>
+                </div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-value">6</div>
+                    <div class="stat-label">Key Modules</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">24/7</div>
+                    <div class="stat-label">Access</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">100%</div>
+                    <div class="stat-label">Secure</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">Fast</div>
+                    <div class="stat-label">Processing</div>
+                </div>
+            </div>
+            <div class="footer">
+                <div class="footer-left">
+                    <div class="footer-item">
+                        <i class="fas fa-user"></i>
+                        <span>Student Dashboard</span>
+                    </div>
+                    <div class="footer-item">
+                        <i class="fas fa-mobile-alt"></i>
+                        <span>Mobile Responsive</span>
+                    </div>
+                </div>
+                <div class="footer-right">
+                    CMS v1.0
+                </div>
+            </div>
+        </div>
+    </div>
+</div></body>
+</html>

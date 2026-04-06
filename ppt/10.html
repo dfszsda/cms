@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Future Enhancements - CMS Project</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=Poppins:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            overflow: hidden;
+        }
+        .slide-container {
+            position: relative;
+            width: 1280px;
+            height: 720px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .background-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.1;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .main-card {
+            position: absolute;
+            left: 50px;
+            top: 50px;
+            width: 1180px;
+            height: 620px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            padding: 25px 40px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .header-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        .header-text h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0;
+        }
+        .header-text p {
+            font-size: 13px;
+            opacity: 0.9;
+            margin: 3px 0 0 0;
+        }
+        .content {
+            flex: 1;
+            padding: 20px 40px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            justify-content: space-between; /* Added to distribute vertical space */
+        }
+        .enhancements-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            /* margin-bottom: 20px; -- Removed as space-between handles gaps */
+        }
+        .enhancement-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s;
+        }
+        .enhancement-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            background: #e0e7ff;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4f46e5;
+            font-size: 18px;
+        }
+        .card-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .card-desc {
+            font-size: 12px;
+            color: #6b7280;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+        .feature-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .feature-tag {
+            background: #e0e7ff;
+            color: #4f46e5;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+        .timeline-section {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid #e5e7eb;
+            /* margin-top: auto; -- Removed as space-between handles gaps */
+        }
+        .timeline-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .timeline-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        .timeline-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        .timeline-icon {
+            width: 32px;
+            height: 32px;
+            background: #e0e7ff;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4f46e5;
+            font-size: 14px;
+        }
+        .timeline-text {
+            flex: 1;
+        }
+        .timeline-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .timeline-status {
+            font-size: 10px;
+            color: #6b7280;
+        }
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            /* margin-top: 15px; -- Removed as space-between handles gaps */
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .footer-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .footer-item i {
+            color: #4f46e5;
+        }
+        .footer-right {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+<div class="slide-container">
+    <div class="background-pattern"></div>
+    <div class="main-card">
+        <div class="header">
+            <div class="header-left">
+                <div class="header-icon">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Future Enhancements</h1>
+                    <p>Planned features and improvements for the CMS system</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div style="text-align: right; font-size: 12px; opacity: 0.8;">
+                    <div>Semester 8</div>
+                    <div>Internship Project</div>
+                </div>
+            </div>
+        </div>
+        <div class="content">
+            <div class="enhancements-grid">
+                <div class="enhancement-card">
+                    <div class="card-header">
+                        <div class="card-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <div class="card-title">AI Analytics</div>
+                    </div>
+                    <div class="card-desc">AI-based student performance analytics with predictive insights and personalized recommendations.</div>
+                    <div class="feature-tags">
+                        <div class="feature-tag">Predictive</div>
+                        <div class="feature-tag">Analytics</div>
+                        <div class="feature-tag">ML</div>
+                    </div>
+                </div>
+                <div class="enhancement-card">
+                    <div class="card-header">
+                        <div class="card-icon">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        <div class="card-title">Video Conferencing</div>
+                    </div>
+                    <div class="card-desc">Integrated video conferencing for online classes and virtual meetings.</div>
+                    <div class="feature-tags">
+                        <div class="feature-tag">Zoom</div>
+                        <div class="feature-tag">Meet</div>
+                        <div class="feature-tag">Live</div>
+                    </div>
+                </div>
+                <div class="enhancement-card">
+                    <div class="card-header">
+                        <div class="card-icon">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <div class="card-title">Push Notifications</div>
+                    </div>
+                    <div class="card-desc">Real-time push notifications for events, fee deadlines, and announcements.</div>
+                    <div class="feature-tags">
+                        <div class="feature-tag">FCM</div>
+                        <div class="feature-tag">Real-time</div>
+                        <div class="feature-tag">Alerts</div>
+                    </div>
+                </div>
+                <div class="enhancement-card">
+                    <div class="card-header">
+                        <div class="card-icon">
+                            <i class="fas fa-bus"></i>
+                        </div>
+                        <div class="card-title">Bus Tracking</div>
+                    </div>
+                    <div class="card-desc">Live bus tracking system with ETA and route optimization.</div>
+                    <div class="feature-tags">
+                        <div class="feature-tag">GPS</div>
+                        <div class="feature-tag">Tracking</div>
+                        <div class="feature-tag">ETA</div>
+                    </div>
+                </div>
+                <div class="enhancement-card">
+                    <div class="card-header">
+                        <div class="card-icon">
+                            <i class="fas fa-wifi"></i>
+                        </div>
+                        <div class="card-title">Offline Caching</div>
+                    </div>
+                    <div class="card-desc">Offline data caching and PWA support for better user experience.</div>
+                    <div class="feature-tags">
+                        <div class="feature-tag">PWA</div>
+                        <div class="feature-tag">Cache</div>
+                        <div class="feature-tag">Offline</div>
+                    </div>
+                </div>
+                <div class="enhancement-card">
+                    <div class="card-header">
+                        <div class="card-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="card-title">Dashboard Analytics</div>
+                    </div>
+                    <div class="card-desc">Advanced analytics dashboard with visual charts and reports.</div>
+                    <div class="feature-tags">
+                        <div class="feature-tag">Charts</div>
+                        <div class="feature-tag">Reports</div>
+                        <div class="feature-tag">Visual</div>
+                    </div>
+                </div>
+            </div>
+            <div class="timeline-section">
+                <div class="timeline-title">
+                    <i class="fas fa-road" style="color: #4f46e5;"></i>
+                    <span>Implementation Timeline</span>
+                </div>
+                <div class="timeline-grid">
+                    <div class="timeline-item">
+                        <div class="timeline-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <div class="timeline-text">
+                            <div class="timeline-name">AI Analytics</div>
+                            <div class="timeline-status">Q1 2024</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-icon">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        <div class="timeline-text">
+                            <div class="timeline-name">Video Conferencing</div>
+                            <div class="timeline-status">Q2 2024</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-icon">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <div class="timeline-text">
+                            <div class="timeline-name">Push Notifications</div>
+                            <div class="timeline-status">Q3 2024</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-icon">
+                            <i class="fas fa-bus"></i>
+                        </div>
+                        <div class="timeline-text">
+                            <div class="timeline-name">Bus Tracking</div>
+                            <div class="timeline-status">Q4 2024</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="footer">
+                <div class="footer-left">
+                    <div class="footer-item">
+                        <i class="fas fa-user"></i>
+                        <span>Presented by: Gohil Harisinh Harikrushna_12302080703007</span>
+                    </div>
+                    <div class="footer-item">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span>Guided by: Harsh Goswam</span>
+                    </div>
+                </div>
+                <div class="footer-right">
+                    <span>MBIT</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div></body>
+</html>

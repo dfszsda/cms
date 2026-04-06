@@ -6,6 +6,7 @@ class PaymentConfig {
   final String sbiWorkingKey;
   final String sbiBaseUrl;
   final String activeGateway;
+  final double examFeePerSubject; // NEW: Admin can set this
 
   PaymentConfig({
     required this.razorpayKey,
@@ -15,6 +16,7 @@ class PaymentConfig {
     required this.sbiWorkingKey,
     this.sbiBaseUrl = "https://test.sbiepay.sbi/payonline/index",
     this.activeGateway = 'Razorpay',
+    this.examFeePerSubject = 500.0, // Default value
   });
 
   factory PaymentConfig.fromFirestore(Map<String, dynamic> data) {
@@ -26,6 +28,7 @@ class PaymentConfig {
       sbiWorkingKey: data['sbi_working_key'] ?? '',
       sbiBaseUrl: data['sbi_base_url'] ?? "https://test.sbiepay.sbi/payonline/index",
       activeGateway: data['active_gateway'] ?? 'Razorpay',
+      examFeePerSubject: (data['exam_fee_per_subject'] ?? 500.0).toDouble(),
     );
   }
 
@@ -38,6 +41,7 @@ class PaymentConfig {
       'sbi_working_key': sbiWorkingKey,
       'sbi_base_url': sbiBaseUrl,
       'active_gateway': activeGateway,
+      'exam_fee_per_subject': examFeePerSubject,
     };
   }
 }

@@ -85,7 +85,10 @@ class _AdminAddUserTabState extends State<AdminAddUserTab> {
                       prefixIcon: const Icon(Icons.account_tree_outlined),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))
                     ),
-                    items: branches.map((doc) => DropdownMenuItem(value: doc.id, child: Text(doc.get('branchId') ?? doc.id))).toList(),
+                    items: branches.map((doc) {
+                      final name = doc.get('name') ?? doc.get('branchId') ?? doc.id;
+                      return DropdownMenuItem(value: doc.id, child: Text(name));
+                    }).toList(),
                     onChanged: (val) => setState(() { _selectedBranchId = val; _selectedBatchName = null; }),
                   );
                 },
@@ -105,7 +108,17 @@ class _AdminAddUserTabState extends State<AdminAddUserTab> {
                       prefixIcon: const Icon(Icons.groups_outlined),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))
                     ),
-                    items: batches.map((doc) => DropdownMenuItem(value: (doc.data() as Map<String, dynamic>)['fullName'].toString(), child: Text((doc.data() as Map<String, dynamic>)['fullName'] ?? ''))).toList(),
+                    items: batches.map((doc) {
+                      final fullName = (doc.data() as Map<String, dynamic>)['fullName'] ?? '';
+                      String displayName = fullName;
+                      if (fullName.contains('-')) {
+                        final parts = fullName.split('-');
+                        if (parts.length >= 2) {
+                          displayName = parts[1]; // e.g. "IT" from "1ID_IT1-IT-2024"
+                        }
+                      }
+                      return DropdownMenuItem(value: fullName.toString(), child: Text(displayName));
+                    }).toList(),
                     onChanged: (val) => setState(() => _selectedBatchName = val),
                   );
                 },
