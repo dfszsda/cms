@@ -19,7 +19,6 @@ class _ExamDashboardScreenState extends State<ExamDashboardScreen> {
   List<SubjectResult> _failedSubjects = [];
   bool _isLoading = false;
   PaymentConfig? _paymentConfig;
-  double _totalFee = 0.0;
   bool _isFormSubmitted = false;
 
   @override
@@ -60,14 +59,6 @@ class _ExamDashboardScreenState extends State<ExamDashboardScreen> {
       _failedSubjects = latestAttempts.values.where((s) => !s.isPass).toList();
       _isLoading = false;
     });
-  }
-
-  void _calculateFee() {
-    if (_paymentConfig != null) {
-      setState(() {
-        _totalFee = _failedSubjects.length * _paymentConfig!.examFeePerSubject;
-      });
-    }
   }
 
   Future<void> _submitExamForm() async {
