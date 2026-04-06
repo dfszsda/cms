@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../models/user_model.dart';
 import '../models/exam_timetable_model.dart';
 import '../models/college_model.dart';
+import '../models/result_model.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
