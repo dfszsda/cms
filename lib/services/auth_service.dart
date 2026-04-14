@@ -435,8 +435,25 @@ class AuthService {
       'semester': semester,
       'name': name,
       'collegeId': collegeId,
+      'subjectTeachers': [],
+      'assistantSubjectTeachers': [],
       'createdAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<void> updateSubjectTeachers(String subjectId, List<String> teachers, List<String> assistants) async {
+    await _firestore.collection('subjects').doc(subjectId).update({
+      'subjectTeachers': teachers,
+      'assistantSubjectTeachers': assistants,
+    });
+  }
+
+  Stream<List<UserModel>> getTeachersByCollege(String collegeId) {
+    return _firestore.collection('users')
+        .where('collegeId', isEqualTo: collegeId)
+        .where('role', whereIn: ['teacher', 'coordinator'])
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) => UserModel.fromMap(doc.data(), doc.id)).toList());
   }
 
   Stream<QuerySnapshot> getSubjects(String branch, int semester, {String? collegeId}) {

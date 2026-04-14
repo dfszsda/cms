@@ -62,6 +62,7 @@ class _AdminAddUserTabState extends State<AdminAddUserTab> {
               items: const [
                 DropdownMenuItem(value: 'student', child: Text("Student")),
                 DropdownMenuItem(value: 'teacher', child: Text("Teacher")),
+                DropdownMenuItem(value: 'coordinator', child: Text("Coordinator")),
                 DropdownMenuItem(value: 'librarian', child: Text("Librarian")),
                 DropdownMenuItem(value: 'retailer', child: Text("Retailer (Canteen)")),
               ],
