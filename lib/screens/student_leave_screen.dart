@@ -173,7 +173,7 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
   }
 
   Future<void> _pickFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
+    FilePickerResult? result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
     );
@@ -232,7 +232,7 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
         createdAt: DateTime.now(),
       );
 
-      await _auth.requestLeave(leave);
+      await FirebaseFirestore.instance.collection('leaves').add(leave.toMap());
       
       if (mounted) {
         messenger.showSnackBar(const SnackBar(content: Text("Leave request submitted successfully!")));

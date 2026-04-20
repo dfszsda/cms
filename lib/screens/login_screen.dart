@@ -171,63 +171,113 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isDesktop = size.width > 800;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDesktop ? Colors.grey[100] : Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 40),
-              const Center(
-                child: AppLogo(size: 110),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: isDesktop ? size.width * 0.1 : 30,
+              vertical: isDesktop ? 40 : 0,
+            ),
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: isDesktop ? 450 : double.infinity,
               ),
-              const SizedBox(height: 32),
-              const Center(child: Text("Welcome Back", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
-              const Center(child: Text("Login to your college account", style: TextStyle(color: Colors.grey, fontSize: 16))),
-              const SizedBox(height: 40),
-              const Text("Email Address", style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: emailCtrl,
-                decoration: const InputDecoration(hintText: 'name@college.edu', prefixIcon: Icon(Icons.email_outlined)),
-              ),
-              const SizedBox(height: 24),
-              const Text("Password", style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: passCtrl,
-                obscureText: !_showPass,
-                decoration: InputDecoration(
-                  hintText: 'Enter your password',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(_showPass ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                    onPressed: () => setState(() => _showPass = !_showPass),
+              padding: isDesktop ? const EdgeInsets.all(40) : EdgeInsets.zero,
+              decoration: isDesktop
+                  ? BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    )
+                  : null,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Center(
+                    child: AppLogo(size: 110),
                   ),
-                ),
+                  const SizedBox(height: 32),
+                  const Center(
+                    child: Text(
+                      "Welcome Back",
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const Center(
+                    child: Text(
+                      "Login to your college account",
+                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  const Text("Email Address",
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: emailCtrl,
+                    decoration: const InputDecoration(
+                        hintText: 'name@college.edu',
+                        prefixIcon: Icon(Icons.email_outlined)),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text("Password",
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: passCtrl,
+                    obscureText: !_showPass,
+                    decoration: InputDecoration(
+                      hintText: 'Enter your password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(_showPass
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined),
+                        onPressed: () => setState(() => _showPass = !_showPass),
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                        onPressed: _showRequestDialog,
+                        child: const Text("Forgot Password?")),
+                  ),
+                  const SizedBox(height: 32),
+                  if (_isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else
+                    ElevatedButton(
+                      onPressed: _login,
+                      style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(56)),
+                      child: const Text("Login",
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                    ),
+                  const SizedBox(height: 24),
+                  const Center(
+                    child: Text(
+                      "Contact Admin to create an account",
+                      style: TextStyle(
+                          color: Colors.grey, fontStyle: FontStyle.italic),
+                    ),
+                  ),
+                ],
               ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(onPressed: _showRequestDialog, child: const Text("Forgot Password?")),
-              ),
-              const SizedBox(height: 32),
-              if (_isLoading) const Center(child: CircularProgressIndicator())
-              else ElevatedButton(
-                onPressed: _login,
-                style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(56)),
-                child: const Text("Login", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(height: 24),
-              const Center(
-                child: Text(
-                  "Contact Admin to create an account",
-                  style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
         ),
       ),

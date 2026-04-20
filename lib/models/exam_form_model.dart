@@ -6,7 +6,9 @@ class ExamSubject {
 
   ExamSubject({required this.name, required this.type});
 
-  Map<String, dynamic> toMap() => {'name': name, 'type': type};
+  Map<String, dynamic> toMap() {
+    return {'name': name, 'type': type};
+  }
 
   factory ExamSubject.fromMap(Map<String, dynamic> map) {
     return ExamSubject(

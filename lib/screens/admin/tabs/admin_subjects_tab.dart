@@ -15,9 +15,18 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
   final _auth = AuthService();
   final _subjectNameCtrl = TextEditingController();
   String? _selectedBranchId;
+  String _selectedType = "General";
   int _selectedSemester = 1;
   int _allocationSemester = 1; // For Teacher Allocation Tab
   late TabController _tabController;
+
+  final List<String> _subjectTypes = [
+    "General",
+    "Professional Elective",
+    "Open Elective",
+    "Practical",
+    "Seminar",
+  ];
 
   @override
   void initState() {
@@ -82,7 +91,11 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
                             if (!snap.hasData) return const LinearProgressIndicator();
                             return DropdownButtonFormField<String>(
                               decoration: const InputDecoration(labelText: "Branch", border: OutlineInputBorder()),
-                              items: snap.data!.docs.map((doc) => DropdownMenuItem(value: doc.id, child: Text(doc.get('branchId') ?? doc.id))).toList(),
+                              items: snap.data!.docs.map((doc) {
+                                final branchId = doc.get('branchId') ?? doc.id;
+                                final displayName = branchId.toString().contains('_') ? branchId.toString().split('_').last : branchId;
+                                return DropdownMenuItem(value: doc.id, child: Text(displayName));
+                              }).toList(),
                               onChanged: (val) => setState(() => _selectedBranchId = val),
                             );
                           },
@@ -100,7 +113,26 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
                     ],
                   ),
                   const SizedBox(height: 12),
-                  TextField(controller: _subjectNameCtrl, decoration: const InputDecoration(labelText: "Subject Name", border: OutlineInputBorder())),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _subjectNameCtrl,
+                          decoration: const InputDecoration(labelText: "Subject Name", border: OutlineInputBorder()),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedType,
+                          isExpanded: true, // This will fix the overflow
+                          decoration: const InputDecoration(labelText: "Subject Type", border: OutlineInputBorder()),
+                          items: _subjectTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
+                          onChanged: (val) => setState(() => _selectedType = val!),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
@@ -108,7 +140,13 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
                       onPressed: () async {
                         if (_selectedBranchId == null || _subjectNameCtrl.text.isEmpty) return;
                         final messenger = ScaffoldMessenger.of(context);
-                        await _auth.addSubject(_selectedBranchId!, _selectedSemester, _subjectNameCtrl.text.trim(), widget.collegeId);
+                        await _auth.addSubject(
+                          _selectedBranchId!,
+                          _selectedSemester,
+                          _subjectNameCtrl.text.trim(),
+                          widget.collegeId,
+                          _selectedType,
+                        );
                         _subjectNameCtrl.clear();
                         messenger.showSnackBar(const SnackBar(content: Text("Subject Added!")));
                       },
@@ -134,7 +172,7 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
                     return Card(
                       child: ListTile(
                         title: Text(data['name'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
-                        subtitle: Text("Branch: ${data['branch']} | Sem: ${data['semester']}"),
+                        subtitle: Text("Branch: ${data['branch'] != null && data['branch'].toString().contains('_') ? data['branch'].toString().split('_').last : data['branch']} | Sem: ${data['semester']} | Type: ${data['type'] ?? 'General'}"),
                         trailing: IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
                           onPressed: () => docs[i].reference.delete(),
@@ -185,13 +223,14 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
                 itemBuilder: (context, i) {
                   final subDoc = subjects[i];
                   final data = subDoc.data() as Map<String, dynamic>;
+                  final String subName = data['name'] ?? '';
                   final List teachers = data['subjectTeachers'] ?? [];
                   final List assistants = data['assistantSubjectTeachers'] ?? [];
 
                   return Card(
                     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: ListTile(
-                      title: Text(data['name'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                      title: Text(subName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
                       subtitle: Text("Teachers: ${teachers.length} | Assistants: ${assistants.length}"),
                       trailing: IconButton(
                         icon: const Icon(Icons.edit, color: Colors.indigo),
@@ -211,6 +250,7 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
   void _showAllocationDialog(String subjectId, Map<String, dynamic> subData) async {
     List<String> selectedTeachers = List<String>.from(subData['subjectTeachers'] ?? []);
     List<String> selectedAssistants = List<String>.from(subData['assistantSubjectTeachers'] ?? []);
+    final String subName = subData['name'] ?? '';
 
     showDialog(
       context: context,
@@ -218,57 +258,48 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text("Allocate Teachers for ${subData['name']}"),
+              title: Text("Allocate Teachers for $subName"),
               content: SizedBox(
                 width: double.maxFinite,
                 child: StreamBuilder<List<UserModel>>(
                   stream: _auth.getTeachersByCollege(widget.collegeId),
                   builder: (context, snap) {
                     if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-                    final teachers = snap.data!;
-                    if (teachers.isEmpty) return const Center(child: Text("No teachers found in this college."));
-                    
-                    return ListView(
-                      shrinkWrap: true,
-                      children: [
-                        const Text("Subject Teachers", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
-                        const Divider(),
-                        ...teachers.map((t) => CheckboxListTile(
-                          title: Text(t.fullName),
-                          subtitle: Text(t.email),
-                          activeColor: Colors.indigo,
-                          value: selectedTeachers.contains(t.uid),
-                          onChanged: (val) {
-                            setDialogState(() {
-                              if (val!) {
-                                selectedTeachers.add(t.uid);
-                                selectedAssistants.remove(t.uid); 
-                              } else {
-                                selectedTeachers.remove(t.uid);
-                              }
-                            });
-                          },
-                        )),
-                        const SizedBox(height: 16),
-                        const Text("Assistant Subject Teachers", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
-                        const Divider(),
-                        ...teachers.map((t) => CheckboxListTile(
-                          title: Text(t.fullName),
-                          subtitle: Text(t.email),
-                          activeColor: Colors.orange,
-                          value: selectedAssistants.contains(t.uid),
-                          onChanged: (val) {
-                            setDialogState(() {
-                              if (val!) {
-                                selectedAssistants.add(t.uid);
-                                selectedTeachers.remove(t.uid); 
-                              } else {
-                                selectedAssistants.remove(t.uid);
-                              }
-                            });
-                          },
-                        )),
-                      ],
+                    final allTeachers = snap.data!;
+                    if (allTeachers.isEmpty) return const Center(child: Text("No teachers found."));
+
+                    return SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTeacherSelector(
+                            title: "Subject Teachers",
+                            color: Colors.indigo,
+                            allTeachers: allTeachers,
+                            selectedIds: selectedTeachers,
+                            otherList: selectedAssistants,
+                            onAdd: (id) => setDialogState(() {
+                              selectedTeachers.add(id);
+                              selectedAssistants.remove(id);
+                            }),
+                            onRemove: (id) => setDialogState(() => selectedTeachers.remove(id)),
+                          ),
+                          const SizedBox(height: 24),
+                          _buildTeacherSelector(
+                            title: "Assistant Subject Teachers",
+                            color: Colors.orange,
+                            allTeachers: allTeachers,
+                            selectedIds: selectedAssistants,
+                            otherList: selectedTeachers,
+                            onAdd: (id) => setDialogState(() {
+                              selectedAssistants.add(id);
+                              selectedTeachers.remove(id);
+                            }),
+                            onRemove: (id) => setDialogState(() => selectedAssistants.remove(id)),
+                          ),
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -282,7 +313,7 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
                     final navigator = Navigator.of(context);
                     await _auth.updateSubjectTeachers(subjectId, selectedTeachers, selectedAssistants);
                     navigator.pop();
-                    messenger.showSnackBar(const SnackBar(content: Text("Teachers Allocated!")));
+                    messenger.showSnackBar(const SnackBar(content: Text("Teachers Allocated Successfully!")));
                   },
                   child: const Text("Save Changes"),
                 ),
@@ -291,6 +322,67 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
           },
         );
       },
+    );
+  }
+
+  Widget _buildTeacherSelector({
+    required String title,
+    required Color color,
+    required List<UserModel> allTeachers,
+    required List<String> selectedIds,
+    required List<String> otherList,
+    required Function(String) onAdd,
+    required Function(String) onRemove,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16)),
+        const Divider(),
+        // Dropdown to Add Teacher
+        DropdownButtonFormField<String>(
+          decoration: InputDecoration(
+            hintText: "Select Teacher to Add",
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          items: allTeachers
+              .where((t) => !selectedIds.contains(t.uid))
+              .map((t) => DropdownMenuItem(
+                    value: t.uid,
+                    child: Text("${t.fullName} (${t.email})", overflow: TextOverflow.ellipsis),
+                  ))
+              .toList(),
+          onChanged: (val) {
+            if (val != null) onAdd(val);
+          },
+        ),
+        const SizedBox(height: 8),
+        // Selected Teachers Display
+        Wrap(
+          spacing: 8,
+          children: selectedIds.map((id) {
+            final teacher = allTeachers.firstWhere(
+              (t) => t.uid == id,
+              orElse: () => UserModel(
+                uid: id,
+                fullName: id, 
+                email: "",
+                role: "",
+              ),
+            );
+            String displayName = teacher.fullName;
+
+            return Chip(
+              label: Text(displayName, style: const TextStyle(fontSize: 12)),
+              backgroundColor: color.withOpacity(0.1),
+              deleteIcon: const Icon(Icons.close, size: 16),
+              onDeleted: () => onRemove(id),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: color)),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 }

@@ -492,6 +492,12 @@ class _StudentCard extends StatelessWidget {
                             label: "Sem ${student.semester ?? '?'}",
                             color: Colors.orange,
                           ),
+                          const SizedBox(width: 8),
+                          _InfoChip(
+                            icon: Icons.account_tree_outlined,
+                            label: student.branchName,
+                            color: Colors.teal,
+                          ),
                         ],
                       ),
                     ],

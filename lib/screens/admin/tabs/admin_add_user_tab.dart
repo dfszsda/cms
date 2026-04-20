@@ -87,8 +87,8 @@ class _AdminAddUserTabState extends State<AdminAddUserTab> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))
                     ),
                     items: branches.map((doc) {
-                      final name = doc.get('name') ?? doc.get('branchId') ?? doc.id;
-                      return DropdownMenuItem(value: doc.id, child: Text(name));
+                      final name = doc.get('branchId') ?? doc.get('name') ?? doc.id;
+                      return DropdownMenuItem(value: doc.id, child: Text(name.toString()));
                     }).toList(),
                     onChanged: (val) => setState(() { _selectedBranchId = val; _selectedBatchName = null; }),
                   );

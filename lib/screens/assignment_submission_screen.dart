@@ -20,7 +20,7 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
   bool _isUploading = false;
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'jpg', 'png'],
     );
@@ -51,6 +51,7 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
       'assignmentTitle': title,
       'studentId': widget.user.uid,
       'studentName': widget.user.fullName,
+      'branchId': widget.user.branch,
       'fileUrl': finalUrl,
       'fileName': fileName,
       'status': 'pending',
@@ -93,7 +94,7 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
               const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text("OR")),
               OutlinedButton.icon(
                 onPressed: () async {
-                  final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'doc', 'docx', 'ppt', 'pptx']);
+                  final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'doc', 'docx', 'ppt', 'pptx']);
                   if (result != null) {
                     setDialogState(() {
                       _pickedFile = result.files.first;
@@ -139,78 +140,83 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
         builder: (context, assignmentSnap) {
           if (!assignmentSnap.hasData) return const Center(child: CircularProgressIndicator());
           
-          final assignments = assignmentSnap.data!.docs;
-          
-          return StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('submissions')
-                .where('studentId', isEqualTo: widget.user.uid)
-                .snapshots(),
-            builder: (context, submissionSnap) {
-              if (!submissionSnap.hasData) return const Center(child: CircularProgressIndicator());
+              final assignmentsDocs = assignmentSnap.data!.docs;
               
-              final submissions = submissionSnap.data!.docs;
-              
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: assignments.length,
-                itemBuilder: (context, index) {
-                  final assignment = assignments[index];
-                  final submission = submissions.where((s) => s['assignmentId'] == assignment.id).firstOrNull;
+              return StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('submissions')
+                    .where('studentId', isEqualTo: widget.user.uid)
+                    .snapshots(),
+                builder: (context, submissionSnap) {
+                  if (!submissionSnap.hasData) return const Center(child: CircularProgressIndicator());
                   
-                  String status = submission != null ? submission['status'] : 'not_submitted';
-                  Color statusColor = status == 'verified' ? Colors.green : (status == 'returned' ? Colors.red : Colors.orange);
+                  final submissionDocs = submissionSnap.data!.docs;
+                  
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: assignmentsDocs.length,
+                    itemBuilder: (context, index) {
+                      final assignment = assignmentsDocs[index].data() as Map<String, dynamic>;
+                      
+                      final submissionDoc = submissionDocs.where((s) => s['assignmentId'] == assignmentsDocs[index].id).firstOrNull;
+                      Map<String, dynamic>? submission;
+                      if (submissionDoc != null) {
+                        submission = submissionDoc.data() as Map<String, dynamic>;
+                      }
+                      
+                      String status = submission != null ? (submission['status'] ?? 'pending') : 'not_submitted';
+                      Color statusColor = status == 'verified' ? Colors.green : (status == 'returned' ? Colors.red : Colors.orange);
 
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        children: [
-                          ListTile(
-                            title: Text(assignment['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("Subject: ${assignment['subject']}"),
-                                if (status != 'not_submitted') 
-                                  Text("Status: ${status.toUpperCase()}", style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12)),
-                                if (status == 'returned' && submission!.data().toString().contains('feedback'))
-                                  Text("Feedback: ${submission['feedback']}", style: const TextStyle(color: Colors.red, fontStyle: FontStyle.italic, fontSize: 13)),
-                              ],
-                            ),
-                            trailing: IconButton(icon: const Icon(Icons.download, color: Colors.blue), onPressed: () => _launchURL(assignment['fileUrl'])),
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Column(
+                            children: [
+                              ListTile(
+                                title: Text(assignment['title'] ?? 'Untitled', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text("Subject: ${assignment['subject'] ?? 'N/A'}"),
+                                    if (status != 'not_submitted') 
+                                      Text("Status: ${status.toUpperCase()}", style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                                    if (status == 'returned' && submission != null && submission.toString().contains('feedback'))
+                                      Text("Feedback: ${submission['feedback']}", style: const TextStyle(color: Colors.red, fontStyle: FontStyle.italic, fontSize: 13)),
+                                  ],
+                                ),
+                                trailing: IconButton(icon: const Icon(Icons.download, color: Colors.blue), onPressed: () => _launchURL(assignment['fileUrl'] ?? "")),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    if (status == 'not_submitted')
+                                      ElevatedButton(onPressed: () => _showSubmitDialog(assignmentsDocs[index].id, assignment['title'] ?? ""), child: const Text("Submit Now"))
+                                    else if (status == 'returned')
+                                      ElevatedButton.icon(
+                                        onPressed: () => _showSubmitDialog(assignmentsDocs[index].id, assignment['title'] ?? "", existingSubmissionId: submissionDoc!.id, currentUrl: submission!['fileUrl']),
+                                        icon: const Icon(Icons.refresh),
+                                        label: const Text("Resubmit"),
+                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                      )
+                                    else if (status == 'pending')
+                                      const Chip(label: Text("Pending Verification"), backgroundColor: Colors.orangeAccent)
+                                    else
+                                      const Chip(label: Text("Verified"), backgroundColor: Colors.greenAccent, avatar: Icon(Icons.check, size: 16)),
+                                  ],
+                                ),
+                              )
+                            ],
                           ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                if (status == 'not_submitted')
-                                  ElevatedButton(onPressed: () => _showSubmitDialog(assignment.id, assignment['title']), child: const Text("Submit Now"))
-                                else if (status == 'returned')
-                                  ElevatedButton.icon(
-                                    onPressed: () => _showSubmitDialog(assignment.id, assignment['title'], existingSubmissionId: submission!.id, currentUrl: submission['fileUrl']),
-                                    icon: const Icon(Icons.refresh),
-                                    label: const Text("Resubmit"),
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                                  )
-                                else if (status == 'pending')
-                                  const Chip(label: Text("Pending Verification"), backgroundColor: Colors.orangeAccent)
-                                else
-                                  const Chip(label: Text("Verified"), backgroundColor: Colors.greenAccent, avatar: Icon(Icons.check, size: 16)),
-                              ],
-                            ),
-                          )
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   );
                 },
               );
-            },
-          );
         },
       ),
     );

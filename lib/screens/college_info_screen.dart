@@ -84,7 +84,7 @@ class _CollegeInfoScreenState extends State<CollegeInfoScreen> {
   }
 
   Future<void> _pickLogo() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.image);
+    final result = await FilePicker.pickFiles(type: FileType.image);
     if (result != null && result.files.single.path != null) {
       setState(() {
         _selectedLogoFile = File(result.files.single.path!);

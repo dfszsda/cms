@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import '../models/result_model.dart';
 import '../services/auth_service.dart';
 import 'attendance_screen.dart';
 import 'students_list_screen.dart';
@@ -11,6 +12,9 @@ import 'timetable_screen.dart';
 import 'student_result_screen.dart';
 import 'student_fee_screen.dart';
 import 'library_screen.dart';
+import 'order_history_screen.dart';
+import 'profile_screen.dart';
+import 'exam_dashboard_screen.dart';
 
 class StudentsSectionScreen extends StatefulWidget {
   final UserModel? user;
@@ -24,63 +28,130 @@ class _StudentsSectionScreenState extends State<StudentsSectionScreen> {
   final _auth = AuthService();
 
   @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final size = MediaQuery.of(context).size;
+    final isDesktop = size.width > 900;
     
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text("Students Section", style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Academic Services",
-                    style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    "Manage your academic activities here",
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ],
-              ),
+      body: Row(
+        children: [
+          if (isDesktop)
+            NavigationRail(
+              extended: size.width > 1200,
+              destinations: const [
+                NavigationRailDestination(icon: Icon(Icons.dashboard), label: Text('Dashboard')),
+                NavigationRailDestination(icon: Icon(Icons.history), label: Text('Orders')),
+                NavigationRailDestination(icon: Icon(Icons.person), label: Text('Profile')),
+              ],
+              selectedIndex: 0,
+              onDestinationSelected: (index) {
+                if (index == 1) Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen()));
+                if (index == 2) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(user: widget.user!)));
+                }
+                if (index == 0) Navigator.pop(context);
+              },
             ),
-            
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  // Attendance Summary Card moved from Home
-                  _buildAttendanceSummaryCard(theme),
-                  
-                  const SizedBox(height: 20),
-                  
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.1,
-                    children: [
+          Expanded(
+            child: CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  expandedHeight: isDesktop ? 80.0 : 120.0,
+                  floating: false,
+                  pinned: true,
+                  backgroundColor: theme.colorScheme.primary,
+                  flexibleSpace: FlexibleSpaceBar(
+                    title: Text(isDesktop ? "Academic Services" : "Students Section", 
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                    background: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Center(
+                    child: Container(
+                      constraints: BoxConstraints(maxWidth: isDesktop ? 1200 : double.infinity),
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Academic Services",
+                            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const Text("Manage your academic records and resources", style: TextStyle(color: Colors.grey)),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: [
+                              _buildInfoChip(theme, Icons.school, "Sem ${widget.user?.semester ?? 'N/A'}"),
+                              _buildInfoChip(theme, Icons.qr_code, "Batch: ${widget.user?.batch ?? 'N/A'}"),
+                              _buildInfoChip(theme, Icons.account_tree_outlined, "Branch: ${widget.user?.branchName ?? 'N/A'}"),
+                              StreamBuilder<QuerySnapshot>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('results')
+                                    .where('studentId', isEqualTo: widget.user?.uid)
+                                    .snapshots(),
+                                builder: (context, snapshot) {
+                                  int atktCount = 0;
+                                  if (snapshot.hasData) {
+                                    Map<String, bool> subjectStatus = {};
+                                    for (var doc in snapshot.data!.docs) {
+                                      final res = ResultModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+                                      for (var sub in res.results) {
+                                        String key = "${res.semester}_${sub.subjectName}";
+                                        subjectStatus[key] = sub.isPass;
+                                      }
+                                    }
+                                    atktCount = subjectStatus.values.where((isPass) => !isPass).length;
+                                  }
+                                  return InkWell(
+                                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExamDashboardScreen(student: widget.user!))),
+                                    child: _buildInfoChip(
+                                      theme, 
+                                      Icons.warning_amber_rounded, 
+                                      "ATKT: $atktCount",
+                                      color: atktCount > 0 ? Colors.red : Colors.green,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          _buildAttendanceSummaryCard(theme),
+                          const SizedBox(height: 24),
+                          Text("Academic Tools", style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: EdgeInsets.symmetric(horizontal: isDesktop ? (size.width - 1200).clamp(20, double.infinity) / 2 + 20 : 20),
+                  sliver: SliverGrid(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: isDesktop ? 4 : 2,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: 1.1,
+                    ),
+                    delegate: SliverChildListDelegate([
                       _ModernSectionCard(
                         title: "Library",
                         icon: Icons.local_library_rounded,
@@ -155,13 +226,33 @@ class _StudentsSectionScreenState extends State<StudentsSectionScreen> {
                           }
                         },
                       ),
-                    ],
+                    ]),
                   ),
-                ],
-              ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 40)),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(ThemeData theme, IconData icon, String label, {Color? color}) {
+    Color mainColor = color ?? theme.colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: mainColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: mainColor),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(color: mainColor, fontWeight: FontWeight.bold, fontSize: 13)),
+        ],
       ),
     );
   }
@@ -194,7 +285,7 @@ class _StudentsSectionScreenState extends State<StudentsSectionScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
             ),
             child: Row(
               children: [
@@ -202,7 +293,7 @@ class _StudentsSectionScreenState extends State<StudentsSectionScreen> {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: (percentage >= 75 ? Colors.green : Colors.red).withValues(alpha: 0.1),
+                    color: (percentage >= 75 ? Colors.green : Colors.red).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
@@ -259,7 +350,7 @@ class _ModernSectionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -271,7 +362,7 @@ class _ModernSectionCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
+                color: color.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 30),
@@ -279,7 +370,7 @@ class _ModernSectionCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               title,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               textAlign: TextAlign.center,
             ),
           ],

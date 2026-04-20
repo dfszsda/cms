@@ -53,7 +53,7 @@ class _CoordinatorLeaveScreenState extends State<CoordinatorLeaveScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(leave.studentName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                Text("${leave.batch} | ${leave.branch}", style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                                Text("${leave.batch} | ${leave.branchName}", style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                               ],
                             ),
                           ),

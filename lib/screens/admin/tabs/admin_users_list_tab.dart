@@ -129,8 +129,9 @@ class _AdminUsersListTabState extends State<AdminUsersListTab> {
               value: user.branch,
               decoration: const InputDecoration(labelText: "Select Branch", border: OutlineInputBorder()),
               items: snap.data!.docs.map((doc) {
-                final name = doc.get('name') ?? doc.get('branchId') ?? doc.id;
-                return DropdownMenuItem(value: doc.id, child: Text(name));
+                final branchId = doc.get('branchId') ?? doc.id;
+                final displayName = branchId.toString().contains('_') ? branchId.toString().split('_').last : branchId;
+                return DropdownMenuItem(value: doc.id, child: Text(displayName));
               }).toList(),
               onChanged: (val) => tempBranch = val,
             );

@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/book_model.dart';
 import '../models/book_order_model.dart';
+import '../services/auth_service.dart';
+import 'login_screen.dart';
+import 'order_history_screen.dart';
 
 class LibraryManagementScreen extends StatefulWidget {
   final String? collegeId;
@@ -13,47 +16,91 @@ class LibraryManagementScreen extends StatefulWidget {
 
 class _LibraryManagementScreenState extends State<LibraryManagementScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final _auth = AuthService();
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final size = MediaQuery.of(context).size;
+    final isDesktop = size.width > 900;
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        appBar: widget.collegeId == null ? AppBar(
-          title: const Text("Library Management"),
-          backgroundColor: Colors.indigo,
-          foregroundColor: Colors.white,
-          bottom: const TabBar(
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            indicatorColor: Colors.white,
-            tabs: [
-              Tab(icon: Icon(Icons.book), text: "Books"),
-              Tab(icon: Icon(Icons.shopping_cart), text: "Orders"),
-              Tab(icon: Icon(Icons.card_membership), text: "Members"),
-            ],
-          ),
-        ) : null,
-        body: Column(
+        backgroundColor: Colors.grey[50],
+        body: Row(
           children: [
-            if (widget.collegeId != null)
-              const TabBar(
-                labelColor: Colors.indigo,
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: Colors.indigo,
-                tabs: [
-                  Tab(icon: Icon(Icons.book), text: "Books"),
-                  Tab(icon: Icon(Icons.shopping_cart), text: "Orders"),
-                  Tab(icon: Icon(Icons.card_membership), text: "Members"),
+            if (isDesktop && widget.collegeId == null)
+              NavigationRail(
+                extended: size.width > 1200,
+                destinations: const [
+                  NavigationRailDestination(icon: Icon(Icons.dashboard_rounded), label: Text('Librarian')),
+                  NavigationRailDestination(icon: Icon(Icons.history_rounded), label: Text('Orders')),
+                  NavigationRailDestination(icon: Icon(Icons.settings_outlined), label: Text('Settings')),
                 ],
+                selectedIndex: 0,
+                onDestinationSelected: (index) {
+                  if (index == 1) Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen()));
+                },
               ),
             Expanded(
-              child: TabBarView(
-                children: [
-                  _buildBooksTab(),
-                  _buildOrdersTab(),
-                  _buildMembersTab(),
+              child: NestedScrollView(
+                headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                  SliverAppBar(
+                    expandedHeight: isDesktop ? 80.0 : 120.0,
+                    floating: false,
+                    pinned: true,
+                    backgroundColor: theme.colorScheme.primary,
+                    title: Text(widget.collegeId == null ? "Library Portal" : "Library Management", 
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Colors.indigo[800]!, Colors.indigo[500]!],
+                          ),
+                        ),
+                      ),
+                    ),
+                    actions: [
+                      if (widget.collegeId == null)
+                        IconButton(
+                          icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                          onPressed: () async {
+                            await _auth.signOut();
+                            if (context.mounted) {
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                (route) => false,
+                              );
+                            }
+                          },
+                        ),
+                      const SizedBox(width: 8),
+                    ],
+                    bottom: TabBar(
+                      labelColor: Colors.white,
+                      unselectedLabelColor: Colors.white70,
+                      indicatorColor: Colors.white,
+                      indicatorWeight: 3,
+                      tabs: const [
+                        Tab(icon: Icon(Icons.book_rounded), text: "Books"),
+                        Tab(icon: Icon(Icons.shopping_cart_rounded), text: "Orders"),
+                        Tab(icon: Icon(Icons.card_membership_rounded), text: "Members"),
+                      ],
+                    ),
+                  ),
                 ],
+                body: TabBarView(
+                  children: [
+                    _buildBooksTab(),
+                    _buildOrdersTab(),
+                    _buildMembersTab(),
+                  ],
+                ),
               ),
             ),
           ],
@@ -61,7 +108,7 @@ class _LibraryManagementScreenState extends State<LibraryManagementScreen> {
         floatingActionButton: FloatingActionButton(
           onPressed: _showAddBookDialog,
           backgroundColor: Colors.indigo,
-          child: const Icon(Icons.add, color: Colors.white),
+          child: const Icon(Icons.add_rounded, color: Colors.white),
         ),
       ),
     );
@@ -82,19 +129,29 @@ class _LibraryManagementScreenState extends State<LibraryManagementScreen> {
         if (books.isEmpty) return const Center(child: Text("No books found."));
 
         return ListView.builder(
+          padding: const EdgeInsets.all(12),
           itemCount: books.length,
           itemBuilder: (context, index) {
             final book = books[index];
-            return ListTile(
-              leading: book.imageUrl != null ? Image.network(book.imageUrl!, width: 50, height: 50, fit: BoxFit.cover) : const Icon(Icons.book),
-              title: Text(book.title),
-              subtitle: Text("${book.author} | Qty: ${book.quantity}"),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _showAddBookDialog(book: book)),
-                  IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _firestore.collection('books').doc(book.id).delete()),
-                ],
+            return Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(12),
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: book.imageUrl != null 
+                    ? Image.network(book.imageUrl!, width: 50, height: 70, fit: BoxFit.cover) 
+                    : Container(color: Colors.indigo[50], width: 50, height: 70, child: const Icon(Icons.book, color: Colors.indigo)),
+                ),
+                title: Text(book.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text("${book.author}\nAvailable: ${book.quantity}"),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(icon: const Icon(Icons.edit_rounded, color: Colors.blue), onPressed: () => _showAddBookDialog(book: book)),
+                    IconButton(icon: const Icon(Icons.delete_rounded, color: Colors.red), onPressed: () => _firestore.collection('books').doc(book.id).delete()),
+                  ],
+                ),
               ),
             );
           },
@@ -119,24 +176,26 @@ class _LibraryManagementScreenState extends State<LibraryManagementScreen> {
         if (orders.isEmpty) return const Center(child: Text("No orders found."));
 
         return ListView.builder(
+          padding: const EdgeInsets.all(12),
           itemCount: orders.length,
           itemBuilder: (context, index) {
             final order = orders[index];
             return Card(
-              margin: const EdgeInsets.all(8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
               child: ListTile(
-                title: Text(order.bookTitle),
-                subtitle: Text("By: ${order.userName}\nStatus: ${order.status}"),
+                title: Text(order.bookTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text("User: ${order.userName}\nStatus: ${order.status}"),
                 trailing: order.status == 'Pending' ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(icon: const Icon(Icons.check, color: Colors.green), onPressed: () => _updateOrderStatus(order, 'Issued')),
-                    IconButton(icon: const Icon(Icons.close, color: Colors.red), onPressed: () => _updateOrderStatus(order, 'Rejected')),
+                    IconButton(icon: const Icon(Icons.check_circle_rounded, color: Colors.green), onPressed: () => _updateOrderStatus(order, 'Issued')),
+                    IconButton(icon: const Icon(Icons.cancel_rounded, color: Colors.red), onPressed: () => _updateOrderStatus(order, 'Rejected')),
                   ],
-                ) : order.status == 'Issued' ? TextButton(
+                ) : order.status == 'Issued' ? ElevatedButton(
                   onPressed: () => _updateOrderStatus(order, 'Returned'),
-                  child: const Text("Mark Returned"),
-                ) : null,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
+                  child: const Text("Return"),
+                ) : Chip(label: Text(order.status)),
               ),
             );
           },
@@ -177,6 +236,7 @@ class _LibraryManagementScreenState extends State<LibraryManagementScreen> {
         if (memberships.isEmpty) return const Center(child: Text("No members found."));
 
         return ListView.builder(
+          padding: const EdgeInsets.all(12),
           itemCount: memberships.length,
           itemBuilder: (context, index) {
             final data = memberships[index].data() as Map<String, dynamic>;
@@ -192,16 +252,19 @@ class _LibraryManagementScreenState extends State<LibraryManagementScreen> {
                   userName = userData?['fullName'] ?? 'Unknown';
                 }
 
-                return ListTile(
-                  title: Text(userName),
-                  subtitle: Text("Status: $status"),
-                  trailing: status == 'Pending' ? ElevatedButton(
-                    onPressed: () => _firestore.collection('library_memberships').doc(userId).update({
-                      'status': 'Active',
-                      'expiryDate': Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
-                    }),
-                    child: const Text("Approve"),
-                  ) : null,
+                return Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  child: ListTile(
+                    title: Text(userName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text("Membership Status: $status"),
+                    trailing: status == 'Pending' ? ElevatedButton(
+                      onPressed: () => _firestore.collection('library_memberships').doc(userId).update({
+                        'status': 'Active',
+                        'expiryDate': Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
+                      }),
+                      child: const Text("Approve"),
+                    ) : const Icon(Icons.check_circle_rounded, color: Colors.green),
+                  ),
                 );
               },
             );
@@ -222,7 +285,8 @@ class _LibraryManagementScreenState extends State<LibraryManagementScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(book == null ? "Add Book" : "Edit Book"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(book == null ? "Add New Book" : "Edit Book Details"),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -232,11 +296,12 @@ class _LibraryManagementScreenState extends State<LibraryManagementScreen> {
               TextField(controller: categoryCtrl, decoration: const InputDecoration(labelText: "Category")),
               TextField(controller: qtyCtrl, decoration: const InputDecoration(labelText: "Quantity"), keyboardType: TextInputType.number),
               TextField(controller: descCtrl, decoration: const InputDecoration(labelText: "Description")),
+              const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: condition,
                 items: ['New', 'Old'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (val) => condition = val!,
-                decoration: const InputDecoration(labelText: "Condition"),
+                decoration: const InputDecoration(labelText: "Condition", border: OutlineInputBorder()),
               ),
             ],
           ),

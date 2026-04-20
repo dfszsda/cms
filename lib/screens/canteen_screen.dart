@@ -121,12 +121,17 @@ class _CanteenScreenState extends State<CanteenScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_currentUser == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_currentUser == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final size = MediaQuery.of(context).size;
+    final isDesktop = size.width > 900;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Canteen Menu"),
-        centerTitle: true,
+        centerTitle: !isDesktop,
         actions: [
           if (_currentUser!.role != 'retailer')
             Stack(
@@ -138,7 +143,7 @@ class _CanteenScreenState extends State<CanteenScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => CartScreen(
-                          cartItems: _cartItems, 
+                          cartItems: _cartItems,
                           userName: _currentUser!.fullName,
                           userRole: _currentUser!.role,
                           collegeId: _currentUser!.collegeId!,
@@ -154,114 +159,206 @@ class _CanteenScreenState extends State<CanteenScreen> {
                     child: CircleAvatar(
                       radius: 8,
                       backgroundColor: Colors.red,
-                      child: Text("${_cartItems.length}", style: const TextStyle(fontSize: 10, color: Colors.white)),
+                      child: Text("${_cartItems.length}",
+                          style: const TextStyle(
+                              fontSize: 10, color: Colors.white)),
                     ),
                   ),
               ],
             ),
+          const SizedBox(width: 16),
         ],
       ),
-      body: Column(
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              onChanged: (value) => setState(() => _searchQuery = value),
-              decoration: InputDecoration(
-                hintText: "Search food items...",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+          if (isDesktop)
+            Container(
+              width: 250,
+              decoration: BoxDecoration(
+                border: Border(right: BorderSide(color: Colors.grey[200]!)),
+              ),
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final cat = categories[index];
+                  bool isSelected = _selectedCategory == cat['name'];
+                  return ListTile(
+                    leading: Icon(cat['icon'],
+                        color: isSelected ? cat['color'] : Colors.grey),
+                    title: Text(cat['name'],
+                        style: TextStyle(
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isSelected ? cat['color'] : Colors.black)),
+                    selected: isSelected,
+                    onTap: () =>
+                        setState(() => _selectedCategory = cat['name']),
+                  );
+                },
               ),
             ),
-          ),
-          SizedBox(
-            height: 100,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final cat = categories[index];
-                bool isSelected = _selectedCategory == cat['name'];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedCategory = cat['name']),
-                    child: Column(
-                      children: [
-                        CircleAvatar(
-                          radius: 28,
-                          backgroundColor: isSelected ? cat['color'] : (cat['color'] as Color).withValues(alpha: 0.1),
-                          child: Icon(cat['icon'], color: isSelected ? Colors.white : cat['color']),
+          Expanded(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Center(
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 600),
+                      child: TextField(
+                        onChanged: (value) =>
+                            setState(() => _searchQuery = value),
+                        decoration: InputDecoration(
+                          hintText: "Search food items...",
+                          prefixIcon: const Icon(Icons.search),
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(30),
+                              borderSide: BorderSide.none),
                         ),
-                        const SizedBox(height: 4),
-                        Text(cat['name'], style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
-                      ],
+                      ),
                     ),
                   ),
-                );
-              },
-            ),
-          ),
-          const Divider(),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _canteenService.getCanteenItems(collegeId: _currentUser!.collegeId),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                
-                var items = snapshot.data!.docs.map((doc) => {
-                  'id': doc.id,
-                  ...doc.data() as Map<String, dynamic>
-                }).where((item) {
-                  bool matchesSearch = item['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
-                  bool matchesCategory = _selectedCategory == "All" || item['category'] == _selectedCategory;
-                  return matchesSearch && matchesCategory;
-                }).toList();
-
-                if (items.isEmpty) return const Center(child: Text("No items found"));
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: ListTile(
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8)),
-                          child: const Icon(Icons.fastfood, color: Colors.orange),
-                        ),
-                        title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(item['price'], style: const TextStyle(color: Colors.green)),
-                        trailing: _currentUser!.role == 'retailer'
-                            ? Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _showAddItemDialog(itemId: item['id'], existingData: item)),
-                                  IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _canteenService.deleteCanteenItem(item['id'])),
-                                ],
-                              )
-                            : ElevatedButton(
-                                onPressed: () => _addToCart(item),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue.shade50,
-                                  foregroundColor: Colors.blue,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                if (!isDesktop)
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      itemCount: categories.length,
+                      itemBuilder: (context, index) {
+                        final cat = categories[index];
+                        bool isSelected = _selectedCategory == cat['name'];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: GestureDetector(
+                            onTap: () =>
+                                setState(() => _selectedCategory = cat['name']),
+                            child: Column(
+                              children: [
+                                CircleAvatar(
+                                  radius: 28,
+                                  backgroundColor: isSelected
+                                      ? cat['color']
+                                      : (cat['color'] as Color)
+                                          .withValues(alpha: 0.1),
+                                  child: Icon(cat['icon'],
+                                      color: isSelected
+                                          ? Colors.white
+                                          : cat['color']),
                                 ),
-                                child: const Text("ADD"),
+                                const SizedBox(height: 4),
+                                Text(cat['name'],
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal)),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                const Divider(),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: _canteenService.getCanteenItems(
+                        collegeId: _currentUser!.collegeId),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      var items = snapshot.data!.docs
+                          .map((doc) => {
+                                'id': doc.id,
+                                ...doc.data() as Map<String, dynamic>
+                              })
+                          .where((item) {
+                        bool matchesSearch = item['name']
+                            .toString()
+                            .toLowerCase()
+                            .contains(_searchQuery.toLowerCase());
+                        bool matchesCategory = _selectedCategory == "All" ||
+                            item['category'] == _selectedCategory;
+                        return matchesSearch && matchesCategory;
+                      }).toList();
+
+                      if (items.isEmpty) {
+                        return const Center(child: Text("No items found"));
+                      }
+
+                      return GridView.builder(
+                        padding: const EdgeInsets.all(24),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: isDesktop ? 3 : 1,
+                          childAspectRatio: isDesktop ? 2.5 : 3.5,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
+                        itemCount: items.length,
+                        itemBuilder: (context, index) {
+                          final item = items[index];
+                          return Card(
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            child: ListTile(
+                              leading: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                    color: Colors.orange.shade50,
+                                    borderRadius: BorderRadius.circular(8)),
+                                child: const Icon(Icons.fastfood,
+                                    color: Colors.orange),
                               ),
-                      ),
-                    );
-                  },
-                );
-              },
+                              title: Text(item['name'],
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold)),
+                              subtitle: Text(item['price'],
+                                  style: const TextStyle(color: Colors.green)),
+                              trailing: _currentUser!.role == 'retailer'
+                                  ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                            icon: const Icon(Icons.edit,
+                                                color: Colors.blue),
+                                            onPressed: () => _showAddItemDialog(
+                                                itemId: item['id'],
+                                                existingData: item)),
+                                        IconButton(
+                                            icon: const Icon(Icons.delete,
+                                                color: Colors.red),
+                                            onPressed: () => _canteenService
+                                                .deleteCanteenItem(item['id'])),
+                                      ],
+                                    )
+                                  : ElevatedButton(
+                                      onPressed: () => _addToCart(item),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue.shade50,
+                                        foregroundColor: Colors.blue,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(20)),
+                                      ),
+                                      child: const Text("ADD"),
+                                    ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ],

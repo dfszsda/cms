@@ -1,9 +1,13 @@
-// ignore_for_file: prefer_final_fields, deprecated_member_use
+// ignore_for_file: unused_local_variable, prefer_final_fields, deprecated_member_use
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'dart:io';
+import 'package:excel/excel.dart' hide Border;
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import '../models/leave_model.dart';
@@ -24,6 +28,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   int _selectedSemester = 1;
   String? _selectedSubject;
+  String? _selectedSubjectId;
   DateTime _selectedDate = DateTime.now();
   List<String> _presentStudents = [];
   List<String> _absentStudents = [];
@@ -185,6 +190,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           setState(() {
                             _selectedSemester = val;
                             _selectedSubject = null;
+                            _selectedSubjectId = null;
                             _presentStudents.clear();
                             _absentStudents.clear();
                           });
@@ -195,19 +201,44 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: StreamBuilder<QuerySnapshot>(
-                      stream: _auth.getSubjects(widget.teacherBranch!, _selectedSemester, collegeId: widget.collegeId),
+                      stream: _auth.getSubjects(widget.teacherBranch!, _selectedSemester, collegeId: widget.collegeId, teacherId: _auth.currentUser?.uid),
                       builder: (context, snapshot) {
-                        List<String> subjects = [];
                         if (snapshot.hasData) {
-                          subjects = snapshot.data!.docs.map((doc) => doc['name'] as String).toList();
+                          final docs = snapshot.data!.docs;
+                          // ચેક કરો કે સિલેક્ટ કરેલી સબ્જેક્ટ ID લિસ્ટમાં છે કે નહીં
+                          bool isValueValid = docs.any((doc) => doc.id == _selectedSubjectId);
+                          
+                          return DropdownButtonFormField<String>(
+                            value: isValueValid ? _selectedSubjectId : null,
+                            isExpanded: true, // આનાથી ડ્રોપડાઉન તેની જગ્યામાં ફિટ થઈ જશે
+                            decoration: const InputDecoration(labelText: "Subject", border: OutlineInputBorder()),
+                            items: docs.map((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              return DropdownMenuItem<String>(
+                                value: doc.id,
+                                child: Text(
+                                  data['name'] as String,
+                                  overflow: TextOverflow.ellipsis, // જો નામ મોટું હોય તો પાછળ ... આવી જશે
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (id) {
+                              if (id != null) {
+                                final doc = docs.firstWhere((d) => d.id == id);
+                                final data = doc.data() as Map<String, dynamic>;
+                                setState(() {
+                                  _selectedSubject = data['name'];
+                                  _selectedSubjectId = id;
+                                });
+                              }
+                            },
+                            hint: Text(
+                              _selectedSubject ?? "Select Subject",
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
                         }
-                        return DropdownButtonFormField<String>(
-                          value: _selectedSubject,
-                          decoration: const InputDecoration(labelText: "Subject", border: OutlineInputBorder()),
-                          items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                          onChanged: (val) => setState(() => _selectedSubject = val),
-                          hint: const Text("Select"),
-                        );
+                        return const Text("Loading...");
                       },
                     ),
                   ),
@@ -423,6 +454,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
                     double percentage = totalClasses == 0 ? 0 : (presentClasses / totalClasses) * 100;
 
+                    // Group by Subject
+                    Map<String, List<Map<String, dynamic>>> subjectWiseData = {};
+                    for (var doc in attendanceDocs) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final subName = data['subject'] as String? ?? 'General';
+                      if (!subjectWiseData.containsKey(subName)) {
+                        subjectWiseData[subName] = [];
+                      }
+                      subjectWiseData[subName]!.add(data);
+                    }
+
                     return SingleChildScrollView(
                       child: Column(
                         children: [
@@ -439,11 +481,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                             ),
                             child: Column(
                               children: [
-                                Text(
-                                  "${percentage.toStringAsFixed(1)}%",
-                                  style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const SizedBox(width: 40), // spacer
+                                    Text(
+                                      "${percentage.toStringAsFixed(1)}%",
+                                      style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.download_for_offline, color: Colors.white, size: 30),
+                                      onPressed: () => _downloadAttendanceExcel(subjectWiseData, widget.student!),
+                                      tooltip: "Download Report",
+                                    ),
+                                  ],
                                 ),
-                                const Text("Attendance Percentage", style: TextStyle(color: Colors.white70)),
+                                const Text("Overall Attendance Percentage", style: TextStyle(color: Colors.white70)),
                                 const SizedBox(height: 20),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -453,6 +506,57 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                     _buildSummaryStat("Absent", (totalClasses - presentClasses).toString()),
                                   ],
                                 ),
+                              ],
+                            ),
+                          ),
+
+                          // Subject Wise Cards
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("Subject-wise Analysis", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.indigo)),
+                                const SizedBox(height: 10),
+                                ...subjectWiseData.entries.map((entry) {
+                                  final subject = entry.key;
+                                  final docs = entry.value;
+                                  int subPresent = 0;
+                                  int subTotal = 0;
+
+                                  for (var data in docs) {
+                                    final presentList = List<String>.from(data['presentStudents'] ?? []);
+                                    final absentList = List<String>.from(data['absentStudents'] ?? []);
+                                    if (presentList.contains(widget.student!.uid)) {
+                                      subPresent++;
+                                      subTotal++;
+                                    } else if (absentList.contains(widget.student!.uid)) {
+                                      subTotal++;
+                                    }
+                                  }
+                                  double subPerc = subTotal == 0 ? 0 : (subPresent / subTotal) * 100;
+
+                                  return Card(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    child: ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundColor: subPerc >= 75 ? Colors.green : Colors.orange,
+                                        child: Text("${subPerc.toInt()}%", style: const TextStyle(color: Colors.white, fontSize: 12)),
+                                      ),
+                                      title: Text(subject, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      subtitle: Text("Present: $subPresent / Total: $subTotal"),
+                                      trailing: SizedBox(
+                                        width: 100,
+                                        child: LinearProgressIndicator(
+                                          value: subPerc / 100,
+                                          backgroundColor: Colors.grey[200],
+                                          valueColor: AlwaysStoppedAnimation<Color>(subPerc >= 75 ? Colors.green : Colors.red),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
                               ],
                             ),
                           ),
@@ -631,7 +735,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
-    if (_selectedSubject == null) {
+    if (_selectedSubject == null || _selectedSubjectId == null) {
       messenger.showSnackBar(const SnackBar(content: Text("Please select a subject.")));
       return;
     }
@@ -646,6 +750,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       await _auth.submitAttendance(
         branch: widget.teacherBranch!,
         semester: _selectedSemester,
+        subjectId: _selectedSubjectId!,
         subject: _selectedSubject!,
         date: _selectedDate,
         presentUids: _presentStudents,
@@ -659,6 +764,118 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       messenger.showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _downloadAttendanceExcel(Map<String, List<Map<String, dynamic>>> data, UserModel student) async {
+    final messenger = ScaffoldMessenger.of(context);
+    
+    // Check Permissions
+    if (Platform.isAndroid) {
+      if (!(await Permission.storage.request().isGranted) && !(await Permission.manageExternalStorage.request().isGranted)) {
+        // Fallback for Android 13+
+        if (!(await Permission.photos.request().isGranted)) {
+           // messenger.showSnackBar(const SnackBar(content: Text("Storage permission is required to save the file.")));
+           // return;
+        }
+      }
+    }
+
+    try {
+      var excel = Excel.createExcel();
+      Sheet sheetObject = excel['Attendance Report'];
+      excel.delete('Sheet1');
+
+      // Styles
+      CellStyle headerStyle = CellStyle(
+        bold: true,
+        backgroundColorHex: ExcelColor.indigo,
+        fontColorHex: ExcelColor.white,
+        horizontalAlign: HorizontalAlign.Center,
+      );
+
+      // Student Info
+      sheetObject.appendRow([TextCellValue("COLLEGE MANAGEMENT SYSTEM - ATTENDANCE REPORT")]);
+      sheetObject.appendRow([TextCellValue("Name:"), TextCellValue(student.fullName)]);
+      sheetObject.appendRow([
+        TextCellValue("Branch:"), 
+        TextCellValue(student.branchName), 
+        TextCellValue("Semester:"), 
+        IntCellValue(student.semester ?? 0)
+      ]);
+      sheetObject.appendRow([TextCellValue("Batch:"), TextCellValue(student.batch ?? "N/A"), TextCellValue("Date:"), TextCellValue(DateFormat('dd-MM-yyyy').format(DateTime.now()))]);
+      sheetObject.appendRow([]); // Empty row
+
+      // Table Header
+      sheetObject.appendRow([
+        TextCellValue("Sr No."),
+        TextCellValue("Subject Name"),
+        TextCellValue("Total Lectures"),
+        TextCellValue("Present"),
+        TextCellValue("Absent"),
+        TextCellValue("Percentage (%)"),
+      ]);
+
+      int index = 1;
+      int totalLecturesAll = 0;
+      int totalPresentAll = 0;
+
+      data.forEach((subject, docs) {
+        int subPresent = 0;
+        int subTotal = 0;
+        for (var d in docs) {
+          final presentList = List<String>.from(d['presentStudents'] ?? []);
+          final absentList = List<String>.from(d['absentStudents'] ?? []);
+          if (presentList.contains(student.uid)) {
+            subPresent++;
+            subTotal++;
+          } else if (absentList.contains(student.uid)) {
+            subTotal++;
+          }
+        }
+        
+        double perc = subTotal == 0 ? 0 : (subPresent / subTotal) * 100;
+        totalLecturesAll += subTotal;
+        totalPresentAll += subPresent;
+
+        sheetObject.appendRow([
+          IntCellValue(index++),
+          TextCellValue(subject),
+          IntCellValue(subTotal),
+          IntCellValue(subPresent),
+          IntCellValue(subTotal - subPresent),
+          DoubleCellValue(perc),
+        ]);
+      });
+
+      sheetObject.appendRow([]); // Empty row
+      double overallPerc = totalLecturesAll == 0 ? 0 : (totalPresentAll / totalLecturesAll) * 100;
+      sheetObject.appendRow([
+        TextCellValue("OVERALL SUMMARY"),
+        TextCellValue(""),
+        IntCellValue(totalLecturesAll),
+        IntCellValue(totalPresentAll),
+        IntCellValue(totalLecturesAll - totalPresentAll),
+        DoubleCellValue(overallPerc),
+      ]);
+
+      // Save file
+      final directory = await getApplicationDocumentsDirectory();
+      String filePath = "${directory.path}/Attendance_${student.fullName.replaceAll(' ', '_')}_Sem${student.semester}.xlsx";
+      
+      var fileBytes = excel.save();
+      if (fileBytes != null) {
+        File(filePath)
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(fileBytes);
+        
+        messenger.showSnackBar(SnackBar(
+          content: Text("Report downloaded to: Documents/Attendance_...xlsx"),
+          action: SnackBarAction(label: "OK", onPressed: () {}),
+        ));
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text("Error generating Excel: $e")));
     }
   }
 }

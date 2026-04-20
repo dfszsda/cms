@@ -104,7 +104,7 @@ class _StudentExamTimetableScreenState extends State<StudentExamTimetableScreen>
                     color: Colors.deepOrange.withOpacity(0.1),
                     child: Column(
                       children: [
-                        Text("Semester ${timetable.semester} - ${timetable.branchId}", 
+                        Text("Semester ${timetable.semester} - ${widget.student.branchName}",
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.deepOrange)),
                         const SizedBox(height: 12),
                         ToggleButtons(
