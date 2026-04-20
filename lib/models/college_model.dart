@@ -1,7 +1,7 @@
 class CollegeModel {
   final String id;
   final String name;
-  final  String shortName; // નવું ફિલ્ડ
+  final String shortName;
   final String university;
   final String city;
   final String district;

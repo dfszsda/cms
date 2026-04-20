@@ -87,7 +87,7 @@ class _UfmDashboardScreenState extends State<UfmDashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _infoRow("Reported by", ufmCase.teacherName),
-                        _infoRow("Branch", ufmCase.studentBranch),
+                        _infoRow("Branch", ufmCase.branchName),
                         _infoRow("Reason", ufmCase.reason),
                         _infoRow("Date", ufmCase.createdAt.toString().split('.')[0]),
                         const SizedBox(height: 16),

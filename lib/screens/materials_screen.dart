@@ -38,7 +38,7 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
   }
 
   Future<void> _uploadMaterial() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
+    FilePickerResult? result = await FilePicker.pickFiles();
 
     if (result != null && result.files.single.path != null) {
       File file = File(result.files.single.path!);

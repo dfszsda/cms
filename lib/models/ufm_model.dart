@@ -14,6 +14,13 @@ class UfmModel {
   final DateTime createdAt;
   final DateTime? resolvedAt;
 
+  String get branchName {
+    if (studentBranch.contains('_')) {
+      return studentBranch.split('_').last;
+    }
+    return studentBranch;
+  }
+
   UfmModel({
     this.id,
     required this.studentId,

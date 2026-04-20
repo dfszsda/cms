@@ -1,7 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../models/ufm_model.dart';
 import '../services/auth_service.dart';
+
+import '../models/student_selection_model.dart';
 
 class StudentDetailScreen extends StatefulWidget {
   final UserModel student;
@@ -52,6 +55,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                   const SizedBox(height: 24),
                   if (canEdit) ...[
                     _buildCoordinatorActions(theme),
+                    const SizedBox(height: 16),
+                    _buildElectiveOverride(theme),
                     const SizedBox(height: 16),
                     _buildUfmAction(theme),
                   ],
@@ -307,7 +312,116 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     );
   }
 
-  Widget _divider() => Divider(height: 1, indent: 64, color: Colors.grey.withValues(alpha: 0.1));
+  Widget _divider() {
+    return Divider(height: 1, color: Colors.grey[200], indent: 64);
+  }
+
+  Widget _buildElectiveOverride(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Elective Subject Override", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        StreamBuilder<StudentSelectionModel?>(
+          stream: _auth.getStudentElectiveSelection(widget.student.uid, widget.student.semester ?? 1),
+          builder: (context, selectionSnap) {
+            final selection = selectionSnap.data;
+            return Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.subject, color: Colors.indigo),
+                      title: const Text("Current Selections"),
+                      subtitle: Text(selection == null ? "No subjects selected yet." : "Selected IDs: ${selection.selectedSubjectIds.join(', ')}"),
+                      trailing: TextButton(
+                        onPressed: () => _showOverrideDialog(selection),
+                        child: const Text("MANAGE"),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showOverrideDialog(StudentSelectionModel? currentSelection) {
+    final Map<String, String?> selectedIds = {};
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Override Elective Subjects"),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: _auth.getAvailableElectives(widget.student.branch ?? '', widget.student.semester ?? 1, widget.student.collegeId ?? ''),
+            builder: (context, snap) {
+              if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+              final subjects = snap.data!.docs;
+              if (subjects.isEmpty) return const Text("No elective subjects available for this semester.");
+
+              final pe = subjects.where((s) => s['type'] == 'Professional Elective').toList();
+              final oe = subjects.where((s) => s['type'] == 'Open Elective').toList();
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (pe.isNotEmpty) ...[
+                    const Text("Professional Elective", style: TextStyle(fontWeight: FontWeight.bold)),
+                    DropdownButtonFormField<String>(
+                      items: pe.map((s) => DropdownMenuItem(value: s.id, child: Text(s['name']))).toList(),
+                      onChanged: (val) => selectedIds['PE'] = val,
+                      decoration: const InputDecoration(hintText: "Select PE"),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (oe.isNotEmpty) ...[
+                    const Text("Open Elective", style: TextStyle(fontWeight: FontWeight.bold)),
+                    DropdownButtonFormField<String>(
+                      items: oe.map((s) => DropdownMenuItem(value: s.id, child: Text(s['name']))).toList(),
+                      onChanged: (val) => selectedIds['OE'] = val,
+                      decoration: const InputDecoration(hintText: "Select OE"),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              if (selectedIds.isEmpty) return;
+              final newSelection = StudentSelectionModel(
+                id: '',
+                studentId: widget.student.uid,
+                collegeId: widget.student.collegeId ?? '',
+                branchId: widget.student.branch ?? '',
+                semester: widget.student.semester ?? 1,
+                selectedSubjectIds: selectedIds.values.whereType<String>().toList(),
+                timestamp: DateTime.now(),
+              );
+              final messenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(ctx);
+              await _auth.saveStudentElectiveSelection(newSelection);
+              if (ctx.mounted) navigator.pop();
+              if (context.mounted) {
+                messenger.showSnackBar(const SnackBar(content: Text("Electives updated successfully!")));
+              }
+            },
+            child: const Text("Save Changes"),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildCoordinatorActions(ThemeData theme) {
     return Column(

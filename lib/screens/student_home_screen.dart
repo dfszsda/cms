@@ -21,6 +21,7 @@ import 'student_exam_form_screen.dart';
 import 'student_exam_timetable_screen.dart';
 import 'student_result_screen.dart';
 import 'student_exam_fee_screen.dart';
+import 'student_elective_selection_screen.dart';
 
 class StudentHomeScreen extends StatelessWidget {
   const StudentHomeScreen({super.key});
@@ -42,6 +43,8 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
   final _auth = AuthService();
   UserModel? _currentUser;
   bool _isLoading = true;
+  bool _isElectivePending = false;
+  bool _isSelectionWindowOpen = false;
 
   @override
   void initState() {
@@ -58,8 +61,86 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
           _currentUser = UserModel.fromMap(doc.data()!, user.uid);
           _isLoading = false;
         });
+        _checkElectiveSelection();
       }
     }
+  }
+
+  Future<void> _checkElectiveSelection() async {
+    if (_currentUser == null || _currentUser!.role != 'student') return;
+
+    // 1. Check if selection window is open
+    bool isOpen = await _auth.isSelectionWindowOpen(
+      _currentUser!.collegeId ?? '',
+      _currentUser!.branch ?? '',
+      _currentUser!.semester ?? 1,
+    );
+
+    if (mounted) {
+      setState(() => _isSelectionWindowOpen = isOpen);
+    }
+
+    if (isOpen) {
+      // 2. Check if already selected
+      _auth.getStudentElectiveSelection(_currentUser!.uid, _currentUser!.semester ?? 1).first.then((selection) {
+        if (selection == null) {
+          // 3. Check if there are actually any electives to select
+          _auth.getAvailableElectives(
+            _currentUser!.branch ?? '',
+            _currentUser!.semester ?? 1,
+            _currentUser!.collegeId ?? '',
+          ).first.then((snap) {
+            if (snap.docs.isNotEmpty) {
+              setState(() => _isElectivePending = true);
+              if (mounted) {
+                _showElectivePrompt();
+              }
+            }
+          });
+        } else {
+          setState(() => _isElectivePending = false);
+        }
+      });
+    }
+  }
+
+  void _showElectivePrompt() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.auto_stories_rounded, color: Colors.indigo),
+            SizedBox(width: 10),
+            Text("Subject Selection"),
+          ],
+        ),
+        content: Text("Your semester has been updated to Sem ${_currentUser?.semester}. Would you like to select your PE and OE elective subjects now?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Later", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => StudentElectiveSelectionScreen(user: _currentUser!)),
+              ).then((_) => _loadUserData());
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.indigo,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text("Select Now"),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleLogout() async {
@@ -76,199 +157,355 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final size = MediaQuery.of(context).size;
+    final isDesktop = size.width > 900;
     
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator())
-        : CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 120.0,
-            floating: false,
-            pinned: true,
-            backgroundColor: theme.colorScheme.primary,
-            flexibleSpace: FlexibleSpaceBar(
-              title: const Text("College Connect", 
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
-                  ),
+        : Row(
+            children: [
+              if (isDesktop)
+                NavigationRail(
+                  extended: size.width > 1200,
+                  destinations: const [
+                    NavigationRailDestination(icon: Icon(Icons.dashboard), label: Text('Dashboard')),
+                    NavigationRailDestination(icon: Icon(Icons.history), label: Text('Orders')),
+                    NavigationRailDestination(icon: Icon(Icons.person), label: Text('Profile')),
+                  ],
+                  selectedIndex: 0,
+                  onDestinationSelected: (index) {
+                    if (index == 1) Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen()));
+                    if (index == 2) Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(user: _currentUser!))).then((_) => _loadUserData());
+                  },
                 ),
-              ),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.history_rounded, color: Colors.white),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen())),
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.account_circle_outlined, color: Colors.white),
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(user: _currentUser!))).then((_) => _loadUserData());
-                  } else if (value == 'logout') {
-                    _handleLogout();
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'edit', child: Text("Edit Profile")),
-                  const PopupMenuItem(value: 'logout', child: Text("Logout")),
-                ],
-              ),
-            ],
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Hello, ${_currentUser?.fullName.split(' ')[0] ?? 'Student'}!",
-                    style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const Text("Welcome to your academic dashboard", style: TextStyle(color: Colors.grey)),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _buildInfoChip(theme, Icons.school, "Sem ${_currentUser?.semester ?? 'N/A'}"),
-                      const SizedBox(width: 12),
-                      _buildInfoChip(theme, Icons.qr_code, "Batch: ${_currentUser?.batch ?? 'N/A'}"),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _buildInfoChip(theme, Icons.account_tree_outlined, "Branch: ${_currentUser?.branchName ?? 'N/A'}"),
-                      const SizedBox(width: 12),
-                      StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('results')
-                            .where('studentId', isEqualTo: _currentUser?.uid)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          int atktCount = 0;
-                          if (snapshot.hasData) {
-                            Map<String, bool> subjectStatus = {};
-                            for (var doc in snapshot.data!.docs) {
-                              final res = ResultModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-                              for (var sub in res.results) {
-                                String key = "${res.semester}_${sub.subjectName}";
-                                subjectStatus[key] = sub.isPass;
-                              }
-                            }
-                            atktCount = subjectStatus.values.where((isPass) => !isPass).length;
-                          }
-                          return InkWell(
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExamDashboardScreen(student: _currentUser!))),
-                            child: _buildInfoChip(
-                              theme, 
-                              Icons.warning_amber_rounded, 
-                              "ATKT: $atktCount",
-                              color: atktCount > 0 ? Colors.red : Colors.green,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // NEW: College Info Card for Students
-                  StreamBuilder<List<CollegeModel>>(
-                    stream: _auth.getColleges(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) return const SizedBox.shrink();
-                      final college = snapshot.data!.first; // Show the first one by default for students
-                      return InkWell(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CollegeInfoScreen(role: 'student', college: college))),
-                        child: Card(
-                          color: theme.colorScheme.primaryContainer,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.school, size: 40, color: Colors.indigo),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(college.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                      Text(college.university, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                                    ],
-                                  ),
-                                ),
-                                const Icon(Icons.arrow_forward_ios, size: 16),
-                              ],
+              Expanded(
+                child: CustomScrollView(
+                  slivers: [
+                    SliverAppBar(
+                      expandedHeight: isDesktop ? 80.0 : 120.0,
+                      floating: false,
+                      pinned: true,
+                      backgroundColor: theme.colorScheme.primary,
+                      flexibleSpace: FlexibleSpaceBar(
+                        title: Text(isDesktop ? "Student Dashboard" : "College Connect", 
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                        background: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
                             ),
                           ),
                         ),
-                      );
-                    }
-                  ),
-                  const SizedBox(height: 16),
+                      ),
+                      actions: [
+                        _buildNotificationBell(),
+                        if (!isDesktop)
+                          IconButton(
+                            icon: const Icon(Icons.history_rounded, color: Colors.white),
+                            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen())),
+                          ),
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.account_circle_outlined, color: Colors.white),
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(user: _currentUser!))).then((_) => _loadUserData());
+                            } else if (value == 'logout') {
+                              _handleLogout();
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(value: 'edit', child: Text("Edit Profile")),
+                            const PopupMenuItem(value: 'logout', child: Text("Logout")),
+                          ],
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ),
+                    SliverToBoxAdapter(
+                      child: Center(
+                        child: Container(
+                          constraints: BoxConstraints(maxWidth: isDesktop ? 1200 : double.infinity),
+                          padding: const EdgeInsets.all(20.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (_isElectivePending) _buildElectiveNotification(),
+                              Text(
+                                "Hello, ${_currentUser?.fullName.split(' ')[0] ?? 'Student'}!",
+                                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              const Text("Welcome to your academic dashboard", style: TextStyle(color: Colors.grey)),
+                              const SizedBox(height: 16),
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                children: [
+                                  _buildInfoChip(theme, Icons.school, "Sem ${_currentUser?.semester ?? 'N/A'}"),
+                                  _buildInfoChip(theme, Icons.qr_code, "Batch: ${_currentUser?.batch ?? 'N/A'}"),
+                                  _buildInfoChip(theme, Icons.account_tree_outlined, "Branch: ${_currentUser?.branchName ?? 'N/A'}"),
+                                  StreamBuilder<QuerySnapshot>(
+                                    stream: FirebaseFirestore.instance
+                                        .collection('results')
+                                        .where('studentId', isEqualTo: _currentUser?.uid)
+                                        .snapshots(),
+                                    builder: (context, snapshot) {
+                                      int atktCount = 0;
+                                      if (snapshot.hasData) {
+                                        Map<String, bool> subjectStatus = {};
+                                        for (var doc in snapshot.data!.docs) {
+                                          final res = ResultModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+                                          for (var sub in res.results) {
+                                            String key = "${res.semester}_${sub.subjectName}";
+                                            subjectStatus[key] = sub.isPass;
+                                          }
+                                        }
+                                        atktCount = subjectStatus.values.where((isPass) => !isPass).length;
+                                      }
+                                      return InkWell(
+                                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExamDashboardScreen(student: _currentUser!))),
+                                        child: _buildInfoChip(
+                                          theme, 
+                                          Icons.warning_amber_rounded, 
+                                          "ATKT: $atktCount",
+                                          color: atktCount > 0 ? Colors.red : Colors.green,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              
+                              StreamBuilder<List<CollegeModel>>(
+                                stream: _auth.getColleges(),
+                                builder: (context, snapshot) {
+                                  if (!snapshot.hasData || snapshot.data!.isEmpty) return const SizedBox.shrink();
+                                  final college = snapshot.data!.first;
+                                  return InkWell(
+                                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CollegeInfoScreen(role: 'student', college: college))),
+                                    child: Card(
+                                      color: theme.colorScheme.primaryContainer,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.school, size: 40, color: Colors.indigo),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(college.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                                  Text(college.university, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                                ],
+                                              ),
+                                            ),
+                                            const Icon(Icons.arrow_forward_ios, size: 16),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              ),
+                              const SizedBox(height: 16),
+                              Text("Quick Actions", style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    SliverPadding(
+                      padding: EdgeInsets.symmetric(horizontal: isDesktop ? (size.width - 1200).clamp(20, double.infinity) / 2 + 20 : 20),
+                      sliver: SliverGrid(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: isDesktop ? 4 : 2,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 1.1,
+                        ),
+                        delegate: SliverChildListDelegate([
+                          if (_isSelectionWindowOpen)
+                            _ModernHomeCard(
+                              title: "Subject Selection",
+                              icon: Icons.auto_stories_rounded,
+                              color: Colors.indigo,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => StudentElectiveSelectionScreen(user: _currentUser!)),
+                              ).then((_) => _loadUserData()),
+                            ),
+                          _ModernHomeCard(
+                            title: "Students Section",
+                            icon: Icons.group_rounded,
+                            color: Colors.orange,
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentsSectionScreen(user: _currentUser))),
+                          ),
+                          _ModernHomeCard(
+                            title: "Attendance",
+                            icon: Icons.calendar_month_rounded,
+                            color: Colors.green,
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(student: _currentUser, collegeId: _currentUser?.collegeId))),
+                          ),
+                          _ModernHomeCard(
+                            title: "Examination",
+                            icon: Icons.assignment_rounded,
+                            color: Colors.deepOrange,
+                            onTap: () => _showExaminationMenu(context),
+                          ),
+                          _ModernHomeCard(
+                            title: "Leave Request",
+                            icon: Icons.exit_to_app_rounded,
+                            color: Colors.purple,
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentLeaveScreen(student: _currentUser!))),
+                          ),
+                          _ModernHomeCard(
+                            title: "Teachers",
+                            icon: Icons.school_rounded,
+                            color: Colors.blue,
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TeachersListScreen())),
+                          ),
+                          _ModernHomeCard(
+                            title: "Canteen",
+                            icon: Icons.restaurant_rounded,
+                            color: Colors.red,
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CanteenScreen())),
+                          ),
+                        ]),
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+    );
+  }
 
-                  Text("Quick Actions", style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                ],
+  Widget _buildNotificationBell() {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
+          onPressed: () {
+            if (_isElectivePending) {
+              _showElectivePrompt();
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("No new notifications"), duration: Duration(seconds: 1)),
+              );
+            }
+          },
+        ),
+        if (_isElectivePending)
+          Positioned(
+            right: 12,
+            top: 12,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.white, width: 1),
               ),
+              constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 1.1,
-              ),
-              delegate: SliverChildListDelegate([
-                _ModernHomeCard(
-                  title: "Students Section",
-                  icon: Icons.group_rounded,
-                  color: Colors.orange,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentsSectionScreen(user: _currentUser))),
-                ),
-                _ModernHomeCard(
-                  title: "Attendance",
-                  icon: Icons.calendar_month_rounded,
-                  color: Colors.green,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(student: _currentUser, collegeId: _currentUser?.collegeId))),
-                ),
-                _ModernHomeCard(
-                  title: "Examination",
-                  icon: Icons.assignment_rounded,
-                  color: Colors.deepOrange,
-                  onTap: () => _showExaminationMenu(context),
-                ),
-                _ModernHomeCard(
-                  title: "Leave Request",
-                  icon: Icons.exit_to_app_rounded,
-                  color: Colors.purple,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentLeaveScreen(student: _currentUser!))),
-                ),
-                _ModernHomeCard(
-                  title: "Teachers",
-                  icon: Icons.school_rounded,
-                  color: Colors.blue,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TeachersListScreen())),
-                ),
-                _ModernHomeCard(
-                  title: "Canteen",
-                  icon: Icons.restaurant_rounded,
-                  color: Colors.red,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CanteenScreen())),
-                ),
-              ]),
+      ],
+    );
+  }
+
+  Widget _buildElectiveNotification() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: Colors.indigo.withOpacity(0.1), width: 1),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              colors: [Colors.white, Colors.indigo.withOpacity(0.02)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
           ),
-        ],
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(Icons.auto_stories_rounded, color: Colors.indigo, size: 28),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Subject Selection",
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.indigo),
+                          ),
+                          Text(
+                            "Pending for Sem ${_currentUser?.semester}",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.indigo.withOpacity(0.7),
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Your elective selection window is now open. Please select your Open Elective (OE) and Professional Elective (PE) subjects.",
+                  style: TextStyle(color: Colors.grey[700], fontSize: 13, height: 1.5),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => StudentElectiveSelectionScreen(user: _currentUser!)),
+                      ).then((_) => _loadUserData());
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text("Select Subjects Now", style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -294,55 +531,66 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
 
           return Container(
             padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text("Examination", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                const Divider(),
-                _buildMenuItem(Icons.description_outlined, "Exam Form", 
-                  subText: "View Form",
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => StudentExamFormScreen(student: _currentUser!)));
-                  }
-                ),
-                _buildMenuItem(Icons.table_chart_outlined, "Exam Timetable", 
-                  subText: "View Timetable",
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => StudentExamTimetableScreen(student: _currentUser!)));
-                  }
-                ),
-                _buildMenuItem(
-                  Icons.assessment_rounded, 
-                  "My Result", 
-                  subText: "View & Download",
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => StudentResultScreen(student: _currentUser!)));
-                  }
-                ),
-                _buildMenuItem(
-                  Icons.badge_outlined, 
-                  "Hall Ticket (PDF)", 
-                  subText: isHallTicketAvailable ? "Download Now" : "Available 10 days before exam",
-                  enabled: isHallTicketAvailable,
-                  onTap: isHallTicketAvailable ? () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hall Ticket format will be added soon!")));
-                  } : null,
-                ),
-                _buildMenuItem(
-                  Icons.payment_outlined, 
-                  "Exam Fee", 
-                  subText: "Pay Now",
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => StudentExamFeeScreen(student: _currentUser!)));
-                  }
-                ),
-                const SizedBox(height: 10),
-              ],
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const Text("Examination", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const Divider(),
+                  _buildMenuItem(Icons.description_outlined, "Exam Form", 
+                    subText: "View Form",
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => StudentExamFormScreen(student: _currentUser!)));
+                    }
+                  ),
+                  _buildMenuItem(Icons.table_chart_outlined, "Exam Timetable", 
+                    subText: "View Timetable",
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => StudentExamTimetableScreen(student: _currentUser!)));
+                    }
+                  ),
+                  _buildMenuItem(
+                    Icons.assessment_rounded, 
+                    "My Result", 
+                    subText: "View & Download",
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => StudentResultScreen(student: _currentUser!)));
+                    }
+                  ),
+                  _buildMenuItem(
+                    Icons.badge_outlined, 
+                    "Hall Ticket (PDF)", 
+                    subText: isHallTicketAvailable ? "Download Now" : "Available 10 days before exam",
+                    enabled: isHallTicketAvailable,
+                    onTap: isHallTicketAvailable ? () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hall Ticket format will be added soon!")));
+                    } : null,
+                  ),
+                  _buildMenuItem(
+                    Icons.payment_outlined, 
+                    "Exam Fee", 
+                    subText: "Pay Now",
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => StudentExamFeeScreen(student: _currentUser!)));
+                    }
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
             ),
           );
         }

@@ -218,9 +218,28 @@ class _StudentFormDetailScreenState extends State<StudentFormDetailScreen> with 
   }
 
   Future<void> _loadDefaultSubjects() async {
+    // 1. Get all subjects for this branch and semester
     final subSnap = await _auth.getSubjects(widget.student.branch ?? '', widget.student.semester ?? 1, collegeId: widget.collegeId).first;
+    
+    // 2. Get student's elective selections
+    final selectionSnap = await _auth.getStudentElectiveSelection(widget.student.uid, widget.student.semester ?? 1).first;
+    List<String> selectedIds = selectionSnap?.selectedSubjectIds ?? [];
+
+    List<ExamSubject> defaultSubjects = [];
+
+    for (var doc in subSnap.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final String type = data['type'] ?? 'General';
+      final String name = data['name'] ?? '';
+
+      // Add if General OR if it's a selected elective
+      if (type == 'General' || type == 'Practical' || selectedIds.contains(doc.id)) {
+        defaultSubjects.add(ExamSubject(name: name, type: type == 'Practical' ? 'Practical' : 'Theory'));
+      }
+    }
+
     setState(() {
-      _subjects = subSnap.docs.map((doc) => ExamSubject(name: doc['name'], type: 'Theory')).toList();
+      _subjects = defaultSubjects;
     });
   }
 

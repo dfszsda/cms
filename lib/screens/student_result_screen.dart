@@ -180,7 +180,7 @@ class _StudentResultScreenState extends State<StudentResultScreen> {
                       children: [
                         pw.Text("Student Name: ${result.studentName}"),
                         pw.Text("Semester: ${result.semester}"),
-                        pw.Text("Branch: ${widget.student.branch ?? 'N/A'}"),
+                        pw.Text("Branch: ${widget.student.branchName}"),
                       ],
                     ),
                     pw.Column(

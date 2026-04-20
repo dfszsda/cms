@@ -15,6 +15,13 @@ class LeaveModel {
   final String? coordinatorId;
   final DateTime createdAt;
 
+  String get branchName {
+    if (branch.contains('_')) {
+      return branch.split('_').last;
+    }
+    return branch;
+  }
+
   LeaveModel({
     required this.id,
     required this.studentUid,

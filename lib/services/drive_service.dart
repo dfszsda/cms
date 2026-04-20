@@ -4,21 +4,45 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 
 class GoogleDriveService {
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: [
-      drive.DriveApi.driveFileScope,
-    ],
-  );
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+
+  Future<void> _initialize() async {
+    await _googleSignIn.initialize(
+      // Add clientId or serverClientId if needed for your platform
+    );
+  }
 
   GoogleSignInAccount? _user;
 
   Future<drive.DriveApi?> _getDriveApi() async {
-    _user ??= await _googleSignIn.signInSilently();
-    _user ??= await _googleSignIn.signIn();
+    await _initialize();
+    
+    // Check if we need to authenticate
+    _user = await _googleSignIn.attemptLightweightAuthentication();
+    
+    if (_user == null) {
+      if (_googleSignIn.supportsAuthenticate()) {
+        try {
+          _user = await _googleSignIn.authenticate(
+            scopeHint: [drive.DriveApi.driveFileScope],
+          );
+        } catch (e) {
+          // ignore: avoid_print
+          print("Authentication failed: $e");
+          return null;
+        }
+      } else {
+        // ignore: avoid_print
+        print("Platform does not support interactive authentication.");
+        return null;
+      }
+    }
 
     if (_user == null) return null;
 
-    final authHeaders = await _user!.authHeaders;
+    final authHeaders = await _user!.authorizationClient.authorizationHeaders([drive.DriveApi.driveFileScope]);
+    if (authHeaders == null) return null;
+
     final authenticateClient = GoogleAuthClient(authHeaders);
     return drive.DriveApi(authenticateClient);
   }

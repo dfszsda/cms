@@ -44,13 +44,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ..age = int.tryParse(ageCtrl.text)
       ..gender = genderCtrl.text.trim()
       ..hobby = hobbyCtrl.text.trim()
-      ..aadhaar = aadhaarCtrl.text.trim()
-      ..abcId = abcCtrl.text.trim()
       ..address = addressCtrl.text.trim()
       ..phone = phoneCtrl.text.trim()
       ..furtherPhone = extraPhoneCtrl.text.trim()
       ..profilePic = profilePicCtrl.text.trim()
       ..profileComplete = true;
+
+    if (widget.user.role != 'teacher') {
+      widget.user
+        ..aadhaar = aadhaarCtrl.text.trim()
+        ..abcId = abcCtrl.text.trim();
+    }
 
     await _auth.updateProfile(widget.user);
 
@@ -97,10 +101,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 16),
             TextField(controller: hobbyCtrl, decoration: const InputDecoration(labelText: "Hobby")),
             const SizedBox(height: 16),
-            TextField(controller: aadhaarCtrl, decoration: const InputDecoration(labelText: "Aadhaar Number")),
-            const SizedBox(height: 16),
-            TextField(controller: abcCtrl, decoration: const InputDecoration(labelText: "ABC ID")),
-            const SizedBox(height: 16),
+            if (widget.user.role != 'teacher') ...[
+              TextField(controller: aadhaarCtrl, decoration: const InputDecoration(labelText: "Aadhaar Number")),
+              const SizedBox(height: 16),
+              TextField(controller: abcCtrl, decoration: const InputDecoration(labelText: "ABC ID")),
+              const SizedBox(height: 16),
+            ],
             TextField(controller: addressCtrl, decoration: const InputDecoration(labelText: "Home Address")),
             const SizedBox(height: 16),
             TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: "Phone Number"), keyboardType: TextInputType.phone),

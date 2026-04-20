@@ -89,7 +89,13 @@ class _TimetableScreenState extends State<TimetableScreen> {
           ElevatedButton(
             onPressed: () async {
               if (controller.text.isNotEmpty && _selectedBranch != null && _currentUser?.collegeId != null) {
-                await _auth.addSubject(_selectedBranch!, _selectedSemester, controller.text.trim(), _currentUser!.collegeId!);
+                await _auth.addSubject(
+                  _selectedBranch!,
+                  _selectedSemester,
+                  controller.text.trim(),
+                  _currentUser!.collegeId!,
+                  "General", // Default type added here
+                );
                 if (dialogContext.mounted) Navigator.pop(dialogContext);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Subject Added!")));
@@ -129,7 +135,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
         ],
       ),
       floatingActionButton: isReadOnly ? null : FloatingActionButton.extended(
-        onPressed: () => setState(() => _slots.add({'time': '09:00 AM', 'subject': '', 'type': 'Subject'})),
+        onPressed: () => setState(() => _slots.add({'time': '09:00 AM', 'subject': '', 'type': 'Subject', 'roomNumber': ''})),
         label: const Text("Add Lecture"),
         icon: const Icon(Icons.add_task_rounded),
         backgroundColor: Colors.indigo,
@@ -151,11 +157,19 @@ class _TimetableScreenState extends State<TimetableScreen> {
                 stream: _auth.getBranches(collegeId: _currentUser?.collegeId),
                 builder: (context, snap) {
                   if (!snap.hasData) return const LinearProgressIndicator();
-                  var branches = snap.data!.docs.map((d) => d.id).toList();
+                  var branchDocs = snap.data!.docs;
                   return DropdownButtonFormField<String>(
                     value: _selectedBranch,
+                    isExpanded: true,
                     decoration: const InputDecoration(labelText: "Branch", border: OutlineInputBorder()),
-                    items: branches.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+                    items: branchDocs.map((doc) {
+                      final branchId = doc.get('branchId') ?? doc.id;
+                      final displayName = branchId.toString().contains('_') ? branchId.toString().split('_').last : branchId;
+                      return DropdownMenuItem(
+                        value: doc.id, 
+                        child: Text(displayName.toString(), overflow: TextOverflow.ellipsis)
+                      );
+                    }).toList(),
                     onChanged: (v) { setState(() => _selectedBranch = v); _loadTimetable(); },
                   );
                 }
@@ -167,7 +181,12 @@ class _TimetableScreenState extends State<TimetableScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text("Branch", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  Text(_selectedBranch ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(
+                    _selectedBranch != null && _selectedBranch!.contains('_') 
+                        ? _selectedBranch!.split('_').last 
+                        : (_selectedBranch ?? 'N/A'), 
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                  ),
                 ],
               ),
             ),
@@ -175,6 +194,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
           Expanded(
             child: DropdownButtonFormField<int>(
               value: _selectedSemester,
+              isExpanded: true,
               decoration: const InputDecoration(labelText: "Semester", border: OutlineInputBorder()),
               items: List.generate(8, (i) => i + 1).map((s) => DropdownMenuItem(value: s, child: Text("Sem $s"))).toList(),
               onChanged: (v) { setState(() => _selectedSemester = v!); _loadTimetable(); },
@@ -265,8 +285,16 @@ class _TimetableScreenState extends State<TimetableScreen> {
                               Icon(Icons.access_time_rounded, size: 14, color: Colors.grey[600]),
                               const SizedBox(width: 4),
                               Text(slot['time'] ?? 'N/A', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                              if (slot['roomNumber'] != null && slot['roomNumber'].toString().isNotEmpty) ...[
+                                const SizedBox(width: 12),
+                                Icon(Icons.location_on_rounded, size: 14, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Text("Room: ${slot['roomNumber']}", style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                              ],
                             ],
                           ),
+                          if (!isBreak && slot['subject'] != null)
+                             _buildTeacherInfo(slot['subject']),
                         ],
                       ),
                     ),
@@ -327,30 +355,112 @@ class _TimetableScreenState extends State<TimetableScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                isBreak 
-                  ? TextField(
-                      decoration: const InputDecoration(labelText: "Break Name (e.g. Lunch)", border: OutlineInputBorder()),
-                      onChanged: (v) => _slots[index]['subject'] = v,
-                      controller: TextEditingController.fromValue(TextEditingValue(text: slot['subject'] ?? '', selection: TextSelection.collapsed(offset: (slot['subject'] ?? '').length))),
-                    )
-                  : StreamBuilder<QuerySnapshot>(
-                      stream: _auth.getSubjects(_selectedBranch ?? '', _selectedSemester, collegeId: _currentUser?.collegeId),
-                      builder: (context, snap) {
-                        List<String> subjects = snap.hasData ? snap.data!.docs.map((d) => d['name'] as String).toList() : [];
-                        return DropdownButtonFormField<String>(
-                          value: subjects.contains(slot['subject']) ? slot['subject'] : null,
-                          decoration: const InputDecoration(labelText: "Select Subject", border: OutlineInputBorder()),
-                          items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                          onChanged: (v) => _slots[index]['subject'] = v,
-                        );
-                      }
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: isBreak 
+                        ? TextField(
+                            decoration: const InputDecoration(labelText: "Break Name (e.g. Lunch)", border: OutlineInputBorder()),
+                            onChanged: (v) => _slots[index]['subject'] = v,
+                            controller: TextEditingController.fromValue(TextEditingValue(text: slot['subject'] ?? '', selection: TextSelection.collapsed(offset: (slot['subject'] ?? '').length))),
+                          )
+                        : StreamBuilder<QuerySnapshot>(
+                            stream: _auth.getSubjects(_selectedBranch ?? '', _selectedSemester, collegeId: _currentUser?.collegeId),
+                            builder: (context, snap) {
+                              List<String> subjects = snap.hasData ? snap.data!.docs.map((d) => d['name'] as String).toList() : [];
+                              return DropdownButtonFormField<String>(
+                                value: subjects.contains(slot['subject']) ? slot['subject'] : null,
+                                isExpanded: true,
+                                decoration: const InputDecoration(labelText: "Select Subject", border: OutlineInputBorder()),
+                                items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(),
+                                onChanged: (v) => _slots[index]['subject'] = v,
+                              );
+                            }
+                          ),
                     ),
+                    if (!isBreak) ...[
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          decoration: const InputDecoration(labelText: "Room", border: OutlineInputBorder()),
+                          onChanged: (v) => _slots[index]['roomNumber'] = v,
+                          controller: TextEditingController.fromValue(TextEditingValue(text: slot['roomNumber'] ?? '', selection: TextSelection.collapsed(offset: (slot['roomNumber'] ?? '').length))),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
         );
       },
     );
+  }
+
+  Widget _buildTeacherInfo(String subjectName) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('subjects')
+          .where('name', isEqualTo: subjectName)
+          .where('branch', isEqualTo: _selectedBranch)
+          .where('semester', isEqualTo: _selectedSemester)
+          .where('collegeId', isEqualTo: _currentUser?.collegeId)
+          .limit(1)
+          .snapshots(),
+      builder: (context, snap) {
+        if (!snap.hasData || snap.data!.docs.isEmpty) return const SizedBox.shrink();
+        
+        var subjectData = snap.data!.docs.first.data() as Map<String, dynamic>;
+        List<dynamic> mainTeachers = subjectData['subjectTeachers'] ?? [];
+        List<dynamic> assistantTeachers = subjectData['assistantSubjectTeachers'] ?? [];
+        String type = subjectData['type'] ?? 'General';
+        bool isPractical = type.toLowerCase().contains('practical');
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (mainTeachers.isNotEmpty)
+              _buildTeacherNamesRow("Teacher:", mainTeachers),
+            if (isPractical && assistantTeachers.isNotEmpty)
+              _buildTeacherNamesRow("Assistants:", assistantTeachers),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTeacherNamesRow(String label, List<dynamic> uids) {
+    return FutureBuilder<List<String>>(
+      future: _getTeacherNames(uids),
+      builder: (context, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("$label ", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.indigo)),
+              Expanded(
+                child: Text(snap.data!.join(", "), style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<List<String>> _getTeacherNames(List<dynamic> uids) async {
+    List<String> names = [];
+    for (var uid in uids) {
+      var doc = await FirebaseFirestore.instance.collection('users').doc(uid.toString()).get();
+      if (doc.exists) {
+        var user = UserModel.fromMap(doc.data()!, doc.id);
+        names.add(user.fullName);
+      }
+    }
+    return names;
   }
 
   Widget _buildSaveButton() {

@@ -9,10 +9,20 @@ import '../models/exam_form_model.dart';
 import '../models/exam_timetable_model.dart';
 import '../models/ufm_model.dart';
 import '../models/college_model.dart';
+import '../models/student_selection_model.dart';
+import '../models/semester_config_model.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  Future<UserModel?> getUserModel(String uid) async {
+    DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
+    if (doc.exists) {
+      return UserModel.fromMap(doc.data() as Map<String, dynamic>, uid);
+    }
+    return null;
+  }
 
   // Authentication
   User? get currentUser => _auth.currentUser;
@@ -87,19 +97,23 @@ class AuthService {
       collegeId = userData['collegeId'];
     }
 
-    await _firestore.collection('requests').add({
+    final requestData = {
       'email': email.trim(),
       'fullName': fullName,
       'collegeId': collegeId,
       'type': type,
       'status': 'pending',
       'createdAt': FieldValue.serverTimestamp(),
-    });
+    };
+
+    await _firestore.collection('requests').add(requestData);
   }
 
   // User Management
   Future<void> signUp(String fullName, String email, String password, String role, {String? collegeId}) async {
     UserCredential cred = await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
+    
+    // Create raw data
     Map<String, dynamic> userData = {
       'fullName': fullName,
       'email': email,
@@ -114,6 +128,7 @@ class AuthService {
     if (role == 'student') {
       userData['semester'] = 1;
     }
+
     await _firestore.collection('users').doc(cred.user!.uid).set(userData);
   }
 
@@ -127,6 +142,7 @@ class AuthService {
     String? collegeId,
   }) async {
     UserCredential cred = await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
+    
     Map<String, dynamic> userData = {
       'fullName': fullName,
       'email': email,
@@ -143,6 +159,7 @@ class AuthService {
       userData['semester'] = 1;
       userData['batch'] = batch;
     }
+
     await _firestore.collection('users').doc(cred.user!.uid).set(userData);
   }
 
@@ -361,6 +378,7 @@ class AuthService {
   Future<void> submitAttendance({
     required String branch,
     required int semester,
+    required String subjectId,
     required String subject,
     required DateTime date,
     required List<String> presentUids,
@@ -371,6 +389,7 @@ class AuthService {
     await _firestore.collection('attendance').add({
       'branchId': branch,
       'semester': semester,
+      'subjectId': subjectId,
       'subject': subject,
       'collegeId': collegeId,
       'date': Timestamp.fromDate(date),
@@ -429,11 +448,12 @@ class AuthService {
   }
 
   // Subject Management
-  Future<void> addSubject(String branch, int semester, String name, String collegeId) async {
+  Future<void> addSubject(String branch, int semester, String name, String collegeId, String type) async {
     await _firestore.collection('subjects').add({
       'branch': branch,
       'semester': semester,
       'name': name,
+      'type': type,
       'collegeId': collegeId,
       'subjectTeachers': [],
       'assistantSubjectTeachers': [],
@@ -453,13 +473,37 @@ class AuthService {
         .where('collegeId', isEqualTo: collegeId)
         .where('role', whereIn: ['teacher', 'coordinator'])
         .snapshots()
-        .map((snap) => snap.docs.map((doc) => UserModel.fromMap(doc.data(), doc.id)).toList());
+        .map((snap) => snap.docs.map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList());
   }
 
-  Stream<QuerySnapshot> getSubjects(String branch, int semester, {String? collegeId}) {
+  Stream<QuerySnapshot> getSubjects(String branch, int semester, {String? collegeId, String? teacherId}) {
     Query query = _firestore.collection('subjects').where('branch', isEqualTo: branch).where('semester', isEqualTo: semester);
     if (collegeId != null) query = query.where('collegeId', isEqualTo: collegeId);
+    
+    if (teacherId != null) {
+      query = query.where(Filter.or(
+        Filter('subjectTeachers', arrayContains: teacherId),
+        Filter('assistantSubjectTeachers', arrayContains: teacherId),
+      ));
+    }
+
     return query.snapshots();
+  }
+
+  Stream<QuerySnapshot> getSubjectsForUpload(String branch, String teacherId, {String? collegeId}) {
+    Query query = _firestore.collection('subjects')
+        .where('branch', isEqualTo: branch)
+        .where('subjectTeachers', arrayContains: teacherId);
+    if (collegeId != null) query = query.where('collegeId', isEqualTo: collegeId);
+    return query.snapshots();
+  }
+
+  Stream<QuerySnapshot> getAllAllocatedSubjects(String branch, String teacherId, {String? collegeId}) {
+    // Returns subjects where teacher is either Subject Teacher or Assistant
+    Query query = _firestore.collection('subjects').where('branch', isEqualTo: branch);
+    if (collegeId != null) query = query.where('collegeId', isEqualTo: collegeId);
+    
+    return query.snapshots(); // We will filter locally or use a better query if needed
   }
 
   // Semester Management
@@ -471,13 +515,19 @@ class AuthService {
     
     WriteBatch batch = _firestore.batch();
     for (var doc in students.docs) {
-      batch.update(doc.reference, {'semester': newSemester});
+      batch.update(doc.reference, {
+        'semester': newSemester,
+        'semesterUpdateDate': FieldValue.serverTimestamp(),
+      });
     }
     await batch.commit();
   }
 
   Future<void> updateStudentSemester(String studentUid, int newSemester) async {
-    await _firestore.collection('users').doc(studentUid).update({'semester': newSemester});
+    await _firestore.collection('users').doc(studentUid).update({
+      'semester': newSemester,
+      'semesterUpdateDate': FieldValue.serverTimestamp(),
+    });
   }
 
   // Examination Management
@@ -621,5 +671,52 @@ class AuthService {
     Query query = _firestore.collection('requests').where('status', isEqualTo: 'pending');
     if (collegeId != null) query = query.where('collegeId', isEqualTo: collegeId);
     return query.orderBy('createdAt', descending: true).snapshots();
+  }
+
+  // --- Elective Selection Logic ---
+
+  Stream<QuerySnapshot> getAvailableElectives(String branchId, int semester, String collegeId) {
+    return _firestore.collection('subjects')
+        .where('collegeId', isEqualTo: collegeId)
+        .where('branch', isEqualTo: branchId)
+        .where('semester', isEqualTo: semester)
+        .where('type', whereIn: ['Professional Elective', 'Open Elective'])
+        .snapshots();
+  }
+
+  Future<void> saveStudentElectiveSelection(StudentSelectionModel selection) async {
+    await _firestore.collection('student_selections').doc('${selection.studentId}_${selection.semester}').set(selection.toMap());
+  }
+
+  Stream<StudentSelectionModel?> getStudentElectiveSelection(String studentId, int semester) {
+    return _firestore.collection('student_selections')
+        .doc('${studentId}_$semester')
+        .snapshots()
+        .map((doc) => doc.exists ? StudentSelectionModel.fromFirestore(doc) : null);
+  }
+
+  Future<void> setSemesterConfig(SemesterConfigModel config) async {
+    String id = '${config.collegeId}_${config.branchId}_${config.semester}';
+    await _firestore.collection('semester_configs').doc(id).set(config.toMap());
+  }
+
+  Stream<SemesterConfigModel?> getSemesterConfig(String collegeId, String branchId, int semester) {
+    String id = '${collegeId}_${branchId}_$semester';
+    return _firestore.collection('semester_configs').doc(id).snapshots().map((doc) => doc.exists ? SemesterConfigModel.fromFirestore(doc) : null);
+  }
+
+  Future<bool> isSelectionWindowOpen(String collegeId, String branchId, int semester) async {
+    String id = '${collegeId}_${branchId}_$semester';
+    DocumentSnapshot doc = await _firestore.collection('semester_configs').doc(id).get();
+    if (!doc.exists) return false;
+
+    final data = doc.data() as Map<String, dynamic>;
+    DateTime startDate = (data['startDate'] as Timestamp).toDate();
+    DateTime endDate = (data['endDate'] as Timestamp).toDate();
+    bool isSelectionActive = data['isSelectionActive'] ?? true;
+    
+    DateTime now = DateTime.now();
+    
+    return isSelectionActive && now.isAfter(startDate) && now.isBefore(endDate);
   }
 }

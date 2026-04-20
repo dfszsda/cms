@@ -292,6 +292,7 @@ class _StudentDirectoryScreenState extends State<StudentDirectoryScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text("Batch: ${student.batch ?? 'N/A'}", style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                    Text("Branch: ${student.branchName}", style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                     Text("Sem: ${student.semester}", style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                   ],
                 ),

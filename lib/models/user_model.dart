@@ -18,6 +18,7 @@ class UserModel {
   String? profilePic;
   bool profileComplete;
   int? semester;
+  DateTime? semesterUpdateDate;
   String? batch; 
   String? branch; 
   String? collegeId; // NEW: Multi-college isolation
@@ -53,6 +54,7 @@ class UserModel {
     this.profilePic,
     this.profileComplete = false,
     this.semester,
+    this.semesterUpdateDate,
     this.batch,
     this.branch,
     this.collegeId,
@@ -79,6 +81,7 @@ class UserModel {
       profilePic: data['profilePic'],
       profileComplete: data['profileComplete'] ?? false,
       semester: data['semester'],
+      semesterUpdateDate: data['semesterUpdateDate'] != null ? (data['semesterUpdateDate'] as Timestamp).toDate() : null,
       batch: data['batch'],
       branch: data['branch'],
       collegeId: data['collegeId'],
@@ -105,6 +108,7 @@ class UserModel {
       'profilePic': profilePic,
       'profileComplete': profileComplete,
       'semester': semester,
+      'semesterUpdateDate': semesterUpdateDate != null ? Timestamp.fromDate(semesterUpdateDate!) : null,
       'batch': batch,
       'branch': branch,
       'collegeId': collegeId,
