@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/error_handler.dart';
 import '../../../models/user_model.dart';
 
 class AdminBatchesTab extends StatefulWidget {
@@ -39,6 +40,7 @@ class _AdminBatchesTabState extends State<AdminBatchesTab> {
                     StreamBuilder<QuerySnapshot>(
                       stream: _auth.getBranches(collegeId: widget.collegeId),
                       builder: (context, snap) {
+                        if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
                         if (!snap.hasData) return const LinearProgressIndicator();
                         return DropdownButtonFormField<String>(
                           decoration: const InputDecoration(labelText: "Select Branch", border: OutlineInputBorder()),
@@ -59,6 +61,7 @@ class _AdminBatchesTabState extends State<AdminBatchesTab> {
                     StreamBuilder<List<UserModel>>(
                       stream: _auth.getTeachers(collegeId: widget.collegeId),
                       builder: (context, snap) {
+                        if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
                         if (!snap.hasData) return const LinearProgressIndicator();
                         return DropdownButtonFormField<String>(
                           decoration: const InputDecoration(labelText: "Coordinator (Optional)", border: OutlineInputBorder()),
@@ -72,14 +75,28 @@ class _AdminBatchesTabState extends State<AdminBatchesTab> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () async {
-                          if (_selectedBranchId == null || _batchLetterCtrl.text.isEmpty) return;
+                          if (_selectedBranchId == null || _batchLetterCtrl.text.isEmpty) {
+                            AppErrorHandler.showError(context, "Branch and Batch Letter are required");
+                            return;
+                          }
+                          
+                          LoadingOverlay.show(context);
                           try {
-                            await _auth.createBatch(_selectedBranchId!, _batchLetterCtrl.text.toUpperCase(), int.parse(_batchYearCtrl.text), widget.collegeId, coordinatorId: _selectedCoordinatorId);
+                            await _auth.createBatch(
+                              _selectedBranchId!, 
+                              _batchLetterCtrl.text.toUpperCase(), 
+                              int.parse(_batchYearCtrl.text), 
+                              widget.collegeId, 
+                              coordinatorId: _selectedCoordinatorId
+                            );
                             if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Batch Created!")));
+                            AppErrorHandler.showSuccess(context, "Batch Created!");
+                            _batchLetterCtrl.clear();
                           } catch (e) {
                             if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                            AppErrorHandler.showError(context, e);
+                          } finally {
+                            if (context.mounted) LoadingOverlay.hide(context);
                           }
                         },
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
@@ -95,7 +112,8 @@ class _AdminBatchesTabState extends State<AdminBatchesTab> {
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance.collection('batches').where('collegeId', isEqualTo: widget.collegeId).orderBy('createdAt', descending: true).snapshots(),
                 builder: (context, snap) {
-                  if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                  if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
+                  if (!snap.hasData) return AppErrorHandler.buildLoadingWidget();
                   final docs = snap.data!.docs;
                   return ListView.builder(
                     itemCount: docs.length,

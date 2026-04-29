@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../models/result_model.dart';
 import '../models/user_model.dart';
+import '../services/error_handler.dart';
 
 class StudentResultScreen extends StatefulWidget {
   final UserModel student;
@@ -55,8 +56,13 @@ class _StudentResultScreenState extends State<StudentResultScreen> {
                   .where('semester', isEqualTo: _selectedSemester)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                if (snapshot.data!.docs.isEmpty) return const Center(child: Text("Result not yet uploaded for this semester."));
+                if (snapshot.hasError) {
+                  return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return AppErrorHandler.buildLoadingWidget();
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text("Result not yet uploaded for this semester."));
 
                 final result = ResultModel.fromMap(snapshot.data!.docs.first.data() as Map<String, dynamic>, snapshot.data!.docs.first.id);
 

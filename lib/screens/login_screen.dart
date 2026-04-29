@@ -9,6 +9,7 @@ import 'retailer_home_screen.dart';
 import 'library_management_screen.dart';
 import 'profile_screen.dart';
 import 'ufm_suspension_screen.dart';
+import '../services/error_handler.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,14 +26,21 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _showPass = false;
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    emailCtrl.dispose();
+    passCtrl.dispose();
+    _reqEmailCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _login() async {
+    FocusScope.of(context).unfocus();
     final email = emailCtrl.text.trim();
     final password = passCtrl.text;
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter email and password")),
-      );
+      AppErrorHandler.showError(context, "Please enter email and password");
       return;
     }
 
@@ -42,14 +50,14 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = await _auth.signIn(email, password);
       
       if (!mounted) return;
-      setState(() => _isLoading = false);
 
       if (user == null) {
-        throw Exception("User data not found.");
+        throw "User data not found.";
       }
 
       // Check for UFM Ban
       if (user.role == 'student' && user.isUfmBanned) {
+        setState(() => _isLoading = false);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => UfmSuspensionScreen(student: user)),
@@ -104,20 +112,9 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _isLoading = false);
-      
-      String errorMsg = e.toString();
-      if (errorMsg.startsWith("Exception: ")) {
-        errorMsg = errorMsg.replaceFirst("Exception: ", "");
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMsg),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppErrorHandler.showError(context, e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -145,6 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
           TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () async {
+              FocusScope.of(dialogCtx).unfocus();
               final email = _reqEmailCtrl.text.trim();
               if (email.isEmpty) return;
               try {
@@ -154,12 +152,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 Navigator.pop(dialogCtx);
                 
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Request sent successfully!"), behavior: SnackBarBehavior.floating),
-                );
+                AppErrorHandler.showSuccess(context, "Request sent successfully!");
               } catch (e) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                AppErrorHandler.showError(context, e);
               }
             },
             child: const Text("Send Request"),

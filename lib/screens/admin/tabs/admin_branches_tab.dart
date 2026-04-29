@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/error_handler.dart';
 
 class AdminBranchesTab extends StatefulWidget {
   final String collegeId;
@@ -47,11 +48,22 @@ class _AdminBranchesTabState extends State<AdminBranchesTab> {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () async {
-                          if (_branchIdCtrl.text.isEmpty) return;
-                          await _auth.addBranch(_branchIdCtrl.text, _branchNameCtrl.text, widget.collegeId);
-                          _branchIdCtrl.clear(); _branchNameCtrl.clear();
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Branch added successfully")));
+                          if (_branchIdCtrl.text.isEmpty) {
+                            AppErrorHandler.showError(context, "Branch ID is required");
+                            return;
+                          }
+                          LoadingOverlay.show(context);
+                          try {
+                            await _auth.addBranch(_branchIdCtrl.text, _branchNameCtrl.text, widget.collegeId);
+                            if (!context.mounted) return;
+                            AppErrorHandler.showSuccess(context, "Branch added successfully");
+                            _branchIdCtrl.clear(); 
+                            _branchNameCtrl.clear();
+                          } catch (e) {
+                            if (context.mounted) AppErrorHandler.showError(context, e);
+                          } finally {
+                            if (context.mounted) LoadingOverlay.hide(context);
+                          }
                         },
                         icon: const Icon(Icons.add),
                         label: const Text("Add Branch"),
@@ -72,7 +84,8 @@ class _AdminBranchesTabState extends State<AdminBranchesTab> {
               child: StreamBuilder<QuerySnapshot>(
                 stream: _auth.getBranches(collegeId: widget.collegeId),
                 builder: (context, snap) {
-                  if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                  if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
+                  if (!snap.hasData) return AppErrorHandler.buildLoadingWidget();
                   final docs = snap.data!.docs;
                   if (docs.isEmpty) return const Center(child: Text("No branches found."));
                   

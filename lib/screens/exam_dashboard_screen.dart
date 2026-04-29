@@ -5,6 +5,7 @@ import '../models/result_model.dart';
 import '../models/exam_form_model.dart';
 import '../models/payment_config_model.dart';
 import '../models/exam_timetable_model.dart';
+import '../services/error_handler.dart';
 
 class ExamDashboardScreen extends StatefulWidget {
   final UserModel student;
@@ -29,64 +30,79 @@ class _ExamDashboardScreenState extends State<ExamDashboardScreen> {
   }
 
   Future<void> _loadPaymentConfig() async {
-    final doc = await FirebaseFirestore.instance.collection('settings').doc('payment_config').get();
-    if (doc.exists) {
-      setState(() {
-        _paymentConfig = PaymentConfig.fromFirestore(doc.data()!);
-      });
+    try {
+      final doc = await FirebaseFirestore.instance.collection('settings').doc('payment_config').get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _paymentConfig = PaymentConfig.fromFirestore(doc.data()!);
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading payment config: $e");
     }
   }
 
   Future<void> _loadAllFailedSubjects() async {
     setState(() => _isLoading = true);
-    final resultsSnap = await FirebaseFirestore.instance
-        .collection('results')
-        .where('studentId', isEqualTo: widget.student.uid)
-        .get();
+    try {
+      final resultsSnap = await FirebaseFirestore.instance
+          .collection('results')
+          .where('studentId', isEqualTo: widget.student.uid)
+          .get();
 
-    Map<String, SubjectResult> latestAttempts = {};
+      Map<String, SubjectResult> latestAttempts = {};
 
-    for (var doc in resultsSnap.docs) {
-      final resModel = ResultModel.fromMap(doc.data(), doc.id);
-      for (var sub in resModel.results) {
-        // Use a unique key for each subject to track its latest status
-        String key = "${resModel.semester}_${sub.subjectName}";
-        latestAttempts[key] = sub;
+      for (var doc in resultsSnap.docs) {
+        final resModel = ResultModel.fromMap(doc.data(), doc.id);
+        for (var sub in resModel.results) {
+          // Use a unique key for each subject to track its latest status
+          String key = "${resModel.semester}_${sub.subjectName}";
+          latestAttempts[key] = sub;
+        }
       }
-    }
 
-    setState(() {
-      _failedSubjects = latestAttempts.values.where((s) => !s.isPass).toList();
-      _isLoading = false;
-    });
+      if (mounted) {
+        setState(() {
+          _failedSubjects = latestAttempts.values.where((s) => !s.isPass).toList();
+        });
+      }
+    } catch (e) {
+      if (mounted) AppErrorHandler.showError(context, e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _submitExamForm() async {
     if (_selectedSemester == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a semester")));
+      AppErrorHandler.showError(context, "Please select a semester");
       return;
     }
 
-    setState(() => _isLoading = true);
+    LoadingOverlay.show(context);
 
-    final form = ExamFormModel(
-      studentId: widget.student.uid,
-      studentName: widget.student.fullName,
-      semester: _selectedSemester!,
-      subjects: _failedSubjects.map((s) => ExamSubject(name: s.subjectName, type: s.type)).toList(),
-      status: 'Pending',
-      collegeId: widget.student.collegeId,
-    );
+    try {
+      final form = ExamFormModel(
+        studentId: widget.student.uid,
+        studentName: widget.student.fullName,
+        semester: _selectedSemester!,
+        subjects: _failedSubjects.map((s) => ExamSubject(name: s.subjectName, type: s.type)).toList(),
+        status: 'Pending',
+        collegeId: widget.student.collegeId,
+      );
 
-    await FirebaseFirestore.instance.collection('exam_forms').add(form.toMap());
+      await FirebaseFirestore.instance.collection('exam_forms').add(form.toMap());
 
-    setState(() {
-      _isLoading = false;
-      _isFormSubmitted = true;
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Exam Form Submitted! Proceed to Payment.")));
+      if (mounted) {
+        setState(() {
+          _isFormSubmitted = true;
+        });
+        AppErrorHandler.showSuccess(context, "Exam Form Submitted! Proceed to Payment.");
+      }
+    } catch (e) {
+      if (mounted) AppErrorHandler.showError(context, e);
+    } finally {
+      if (mounted) LoadingOverlay.hide(context);
     }
   }
 
@@ -99,7 +115,7 @@ class _ExamDashboardScreenState extends State<ExamDashboardScreen> {
         foregroundColor: Colors.white,
       ),
       body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
+        ? AppErrorHandler.buildLoadingWidget()
         : SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -221,7 +237,7 @@ class _ExamDashboardScreenState extends State<ExamDashboardScreen> {
           ElevatedButton(
             onPressed: () {
               // Integrate Payment Gateway here
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Redirecting to Payment Gateway...")));
+              AppErrorHandler.showSuccess(context, "Redirecting to Payment Gateway...");
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(45)),
             child: const Text("PAY EXAM FEE NOW"),
@@ -240,6 +256,12 @@ class _ExamDashboardScreenState extends State<ExamDashboardScreen> {
         StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance.collection('exam_timetables').where('semester', isEqualTo: _selectedSemester).snapshots(),
           builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+            }
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return AppErrorHandler.buildLoadingWidget();
+            }
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return const Text("No timetable released for this semester yet.", style: TextStyle(color: Colors.grey));
             }

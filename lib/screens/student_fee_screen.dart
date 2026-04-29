@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../models/user_model.dart';
 import '../models/payment_config_model.dart';
+import '../services/error_handler.dart';
 
 class StudentFeeScreen extends StatefulWidget {
   final UserModel student;
@@ -52,7 +53,9 @@ class _StudentFeeScreenState extends State<StudentFeeScreen> {
         _paymentConfig = PaymentConfig.fromFirestore(configDoc.data()!);
       }
     } catch (e) {
-      debugPrint("Error loading data: $e");
+      if (mounted) {
+        AppErrorHandler.showError(context, e);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -60,6 +63,7 @@ class _StudentFeeScreenState extends State<StudentFeeScreen> {
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
     // Save payment details to Firestore
+    LoadingOverlay.show(context);
     try {
       await FirebaseFirestore.instance.collection('fee_payments').add({
         'studentId': widget.student.uid,
@@ -75,40 +79,32 @@ class _StudentFeeScreenState extends State<StudentFeeScreen> {
       });
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Payment Successful! Fee record updated.")),
-        );
+        AppErrorHandler.showSuccess(context, "Payment Successful! Fee record updated.");
         Navigator.pop(context); // Go back after success
       }
     } catch (e) {
-      debugPrint("Error saving payment: $e");
+      if (mounted) AppErrorHandler.showError(context, e);
+    } finally {
+      if (mounted) LoadingOverlay.hide(context);
     }
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Payment Failed: ${response.message}")),
-    );
+    AppErrorHandler.showError(context, "Payment Failed: ${response.message}");
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("External Wallet Selected: ${response.walletName}")),
-    );
+    AppErrorHandler.showSuccess(context, "External Wallet Selected: ${response.walletName}");
   }
 
   void _handlePayment() {
     if (_paymentConfig == null || _paymentConfig!.razorpayKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Payment gateway not configured correctly.")),
-      );
+      AppErrorHandler.showError(context, "Payment gateway not configured correctly.");
       return;
     }
 
     if (_paymentConfig!.activeGateway != 'Razorpay') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Currently ${_paymentConfig!.activeGateway} is active. Only Razorpay is supported in this version.")),
-      );
+      AppErrorHandler.showError(context, "Currently ${_paymentConfig!.activeGateway} is active. Only Razorpay is supported in this version.");
       return;
     }
 
@@ -129,7 +125,7 @@ class _StudentFeeScreenState extends State<StudentFeeScreen> {
     try {
       _razorpay.open(options);
     } catch (e) {
-      debugPrint("Error opening Razorpay: $e");
+      AppErrorHandler.showError(context, "Error opening Razorpay: $e");
     }
   }
 
@@ -144,7 +140,7 @@ class _StudentFeeScreenState extends State<StudentFeeScreen> {
         foregroundColor: Colors.white,
       ),
       body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
+        ? AppErrorHandler.buildLoadingWidget()
         : Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(

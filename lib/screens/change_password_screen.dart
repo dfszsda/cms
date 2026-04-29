@@ -25,7 +25,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    newPassCtrl.dispose();
+    confirmCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _change() async {
+    FocusScope.of(context).unfocus();
     if (newPassCtrl.text != confirmCtrl.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Passwords do not match")),

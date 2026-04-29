@@ -1,6 +1,7 @@
+import 'package:cms/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../services/auth_service.dart';
+import '../../../services/error_handler.dart';
 import '../../../models/user_model.dart';
 
 class AdminSubjectsTab extends StatefulWidget {
@@ -88,6 +89,7 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
                         child: StreamBuilder<QuerySnapshot>(
                           stream: _auth.getBranches(collegeId: widget.collegeId),
                           builder: (context, snap) {
+                            if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
                             if (!snap.hasData) return const LinearProgressIndicator();
                             return DropdownButtonFormField<String>(
                               decoration: const InputDecoration(labelText: "Branch", border: OutlineInputBorder()),
@@ -138,17 +140,29 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () async {
-                        if (_selectedBranchId == null || _subjectNameCtrl.text.isEmpty) return;
-                        final messenger = ScaffoldMessenger.of(context);
-                        await _auth.addSubject(
-                          _selectedBranchId!,
-                          _selectedSemester,
-                          _subjectNameCtrl.text.trim(),
-                          widget.collegeId,
-                          _selectedType,
-                        );
-                        _subjectNameCtrl.clear();
-                        messenger.showSnackBar(const SnackBar(content: Text("Subject Added!")));
+                        if (_selectedBranchId == null || _subjectNameCtrl.text.isEmpty) {
+                          AppErrorHandler.showError(context, "Branch and Subject Name are required");
+                          return;
+                        }
+                        
+                        LoadingOverlay.show(context);
+                        try {
+                          await _auth.addSubject(
+                            _selectedBranchId!,
+                            _selectedSemester,
+                            _subjectNameCtrl.text.trim(),
+                            widget.collegeId,
+                            _selectedType,
+                          );
+                          if (context.mounted) {
+                            AppErrorHandler.showSuccess(context, "Subject Added!");
+                            _subjectNameCtrl.clear();
+                          }
+                        } catch (e) {
+                          if (context.mounted) AppErrorHandler.showError(context, e);
+                        } finally {
+                          if (context.mounted) LoadingOverlay.hide(context);
+                        }
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
                       child: const Text("Add Subject"),
@@ -163,7 +177,8 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('subjects').where('collegeId', isEqualTo: widget.collegeId).orderBy('createdAt', descending: true).snapshots(),
               builder: (context, snap) {
-                if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
+                if (!snap.hasData) return AppErrorHandler.buildLoadingWidget();
                 final docs = snap.data!.docs;
                 return ListView.builder(
                   itemCount: docs.length,
@@ -214,7 +229,8 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
                 .orderBy('name')
                 .snapshots(),
             builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
+              if (snap.connectionState == ConnectionState.waiting) return AppErrorHandler.buildLoadingWidget();
               if (!snap.hasData || snap.data!.docs.isEmpty) return const Center(child: Text("No subjects found for this semester."));
               
               final subjects = snap.data!.docs;
@@ -264,7 +280,8 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
                 child: StreamBuilder<List<UserModel>>(
                   stream: _auth.getTeachersByCollege(widget.collegeId),
                   builder: (context, snap) {
-                    if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                    if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
+                    if (!snap.hasData) return AppErrorHandler.buildLoadingWidget();
                     final allTeachers = snap.data!;
                     if (allTeachers.isEmpty) return const Center(child: Text("No teachers found."));
 
@@ -309,11 +326,18 @@ class _AdminSubjectsTabState extends State<AdminSubjectsTab> with SingleTickerPr
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
                   onPressed: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    final navigator = Navigator.of(context);
-                    await _auth.updateSubjectTeachers(subjectId, selectedTeachers, selectedAssistants);
-                    navigator.pop();
-                    messenger.showSnackBar(const SnackBar(content: Text("Teachers Allocated Successfully!")));
+                    LoadingOverlay.show(context);
+                    try {
+                      await _auth.updateSubjectTeachers(subjectId, selectedTeachers, selectedAssistants);
+                      if (context.mounted) {
+                        AppErrorHandler.showSuccess(context, "Teachers Allocated Successfully!");
+                        Navigator.pop(context);
+                      }
+                    } catch (e) {
+                      if (context.mounted) AppErrorHandler.showError(context, e);
+                    } finally {
+                      if (context.mounted) LoadingOverlay.hide(context);
+                    }
                   },
                   child: const Text("Save Changes"),
                 ),

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/todo_model.dart';
+import '../services/error_handler.dart';
 import 'group_projects_screen.dart';
 
 class TodoWorksScreen extends StatefulWidget {
@@ -53,6 +54,7 @@ class _TodoWorksScreenState extends State<TodoWorksScreen> with SingleTickerProv
       );
 
       if (time != null) {
+        if (!mounted) return;
         setState(() {
           _selectedDeadline = DateTime(
             date.year,
@@ -68,15 +70,14 @@ class _TodoWorksScreenState extends State<TodoWorksScreen> with SingleTickerProv
 
   Future<void> _addTask() async {
     if (_titleCtrl.text.isEmpty || _selectedDeadline == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter title and select deadline")),
-      );
+      AppErrorHandler.showError(context, "Please enter title and select deadline");
       return;
     }
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    LoadingOverlay.show(context);
     try {
       final task = TodoTask(
         id: '',
@@ -89,21 +90,17 @@ class _TodoWorksScreenState extends State<TodoWorksScreen> with SingleTickerProv
 
       await FirebaseFirestore.instance.collection('todos').add(task.toMap());
       
-      if (mounted) {
-        _titleCtrl.clear();
-        _descCtrl.clear();
-        setState(() => _selectedDeadline = null);
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Task saved successfully!")),
-        );
-      }
+      if (!mounted) return;
+      _titleCtrl.clear();
+      _descCtrl.clear();
+      setState(() => _selectedDeadline = null);
+      Navigator.pop(context);
+      AppErrorHandler.showSuccess(context, "Task saved successfully!");
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error saving task: $e")),
-        );
-      }
+      if (!mounted) return;
+      AppErrorHandler.showError(context, e);
+    } finally {
+      if (mounted) LoadingOverlay.hide(context);
     }
   }
 
@@ -189,16 +186,11 @@ class _TodoWorksScreenState extends State<TodoWorksScreen> with SingleTickerProv
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Text("Error: ${snapshot.error}\n\nIf this is an index error, please click the link in the console to create it."),
-                  ),
-                );
+                return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
               }
               
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return AppErrorHandler.buildLoadingWidget();
               }
 
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -261,7 +253,16 @@ class _TodoWorksScreenState extends State<TodoWorksScreen> with SingleTickerProv
                                 alignment: Alignment.centerRight,
                                 child: IconButton(
                                   icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                  onPressed: () => FirebaseFirestore.instance.collection('todos').doc(task.id).delete(),
+                                  onPressed: () async {
+                                    try {
+                                      await FirebaseFirestore.instance.collection('todos').doc(task.id).delete();
+                                      if (!mounted) return;
+                                      AppErrorHandler.showSuccess(context, "Task deleted");
+                                    } catch (e) {
+                                      if (!mounted) return;
+                                      AppErrorHandler.showError(context, e);
+                                    }
+                                  },
                                 ),
                               )
                             ],

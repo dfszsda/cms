@@ -1,8 +1,11 @@
+// ignore_for_file: unused_field
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../services/canteen_service.dart';
 import '../models/payment_config_model.dart';
+import '../services/error_handler.dart';
 
 class CartScreen extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -53,7 +56,7 @@ class _CartScreenState extends State<CartScreen> {
         });
       }
     } catch (e) {
-      debugPrint("Error loading payment config: $e");
+      if (mounted) AppErrorHandler.showError(context, e);
     }
   }
 
@@ -76,24 +79,16 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
-    setState(() => _isPlacingOrder = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Payment Failed: ${response.message}")),
-    );
+    if (mounted) AppErrorHandler.showError(context, "Payment Failed: ${response.message}");
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("External Wallet: ${response.walletName}")),
-    );
+    if (mounted) AppErrorHandler.showSuccess(context, "External Wallet: ${response.walletName}");
   }
 
   Future<void> _startPayment() async {
     if (_paymentConfig == null || _paymentConfig!.razorpayKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Payment gateway not configured by admin.")),
-      );
-      setState(() => _isPlacingOrder = false);
+      AppErrorHandler.showError(context, "Payment gateway not configured by admin.");
       return;
     }
 
@@ -116,8 +111,7 @@ class _CartScreenState extends State<CartScreen> {
     try {
       _razorpay.open(options);
     } catch (e) {
-      setState(() => _isPlacingOrder = false);
-      debugPrint('Error: $e');
+      if (mounted) AppErrorHandler.showError(context, e);
     }
   }
 
@@ -126,6 +120,7 @@ class _CartScreenState extends State<CartScreen> {
     required String paymentStatus,
     String? transactionId,
   }) async {
+    LoadingOverlay.show(context);
     try {
       await _canteenService.placeOrder(
         items: List<Map<String, dynamic>>.from(widget.cartItems),
@@ -137,30 +132,24 @@ class _CartScreenState extends State<CartScreen> {
         transactionId: transactionId,
         collegeId: widget.collegeId,
       );
-      if (mounted) {
+      if (context.mounted) {
         widget.cartItems.clear();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Order placed successfully!")),
-        );
+        AppErrorHandler.showSuccess(context, "Order placed successfully!");
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error placing order: $e")),
-        );
+      if (context.mounted) {
+        AppErrorHandler.showError(context, e);
       }
     } finally {
-      if (mounted) setState(() => _isPlacingOrder = false);
+      LoadingOverlay.hide(context);
     }
   }
 
   Future<void> _placeOrder() async {
     if (_selectedPaymentMethod == 'Online') {
-      setState(() => _isPlacingOrder = true);
       await _startPayment();
     } else {
-      setState(() => _isPlacingOrder = true);
       await _finalizeOrder(
         paymentMethod: 'Cash',
         paymentStatus: 'Pending',
@@ -303,16 +292,14 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton(
-                        onPressed: _isPlacingOrder ? null : _placeOrder,
+                        onPressed: _placeOrder,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
                           minimumSize: const Size.fromHeight(55),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         ),
-                        child: _isPlacingOrder 
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : Text(_selectedPaymentMethod == 'Online' ? "PAY & PLACE ORDER" : "PLACE ORDER", 
+                        child: Text(_selectedPaymentMethod == 'Online' ? "PAY & PLACE ORDER" : "PLACE ORDER",
                                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ],

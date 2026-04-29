@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/error_handler.dart';
 
 class AdminMigrationTab extends StatefulWidget {
   final String collegeId;
@@ -40,6 +41,9 @@ class _AdminMigrationTabState extends State<AdminMigrationTab> {
     return FutureBuilder<int>(
       future: _auth.getOrphanCount(collection),
       builder: (context, snapshot) {
+        if (snapshot.hasError) return const SizedBox.shrink(); 
+        if (!snapshot.hasData) return const LinearProgressIndicator();
+        
         int count = snapshot.data ?? 0;
         return Card(
           elevation: 2,
@@ -52,10 +56,18 @@ class _AdminMigrationTabState extends State<AdminMigrationTab> {
             trailing: count > 0
                 ? ElevatedButton(
               onPressed: () async {
-                await _auth.migrateDataToCollege(collection, widget.collegeId);
-                if (!context.mounted) return;
-                setState(() {}); // Refresh
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Migrated $count $label items")));
+                LoadingOverlay.show(context);
+                try {
+                  await _auth.migrateDataToCollege(collection, widget.collegeId);
+                  if (context.mounted) {
+                    AppErrorHandler.showSuccess(context, "Migrated $count $label items");
+                    setState(() {}); // Refresh
+                  }
+                } catch (e) {
+                  if (context.mounted) AppErrorHandler.showError(context, e);
+                } finally {
+                  if (context.mounted) LoadingOverlay.hide(context);
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
               child: const Text("Migrate"),

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/error_handler.dart';
 
 class TeachersListScreen extends StatefulWidget {
   const TeachersListScreen({super.key});
@@ -136,12 +137,11 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
     return StreamBuilder<List<UserModel>>(
       stream: _auth.getTeachers(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
         if (snapshot.hasError) {
-          return const Center(child: Text("Something went wrong"));
+          return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return AppErrorHandler.buildLoadingWidget();
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {

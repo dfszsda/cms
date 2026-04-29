@@ -18,16 +18,28 @@ class CanteenService {
   }
 
   Future<void> addCanteenItem(Map<String, dynamic> itemData, String collegeId) async {
-    itemData['collegeId'] = collegeId;
-    await _firestore.collection('canteen_items').add(itemData);
+    try {
+      itemData['collegeId'] = collegeId;
+      await _firestore.collection('canteen_items').add(itemData).timeout(const Duration(seconds: 10));
+    } catch (e) {
+      throw "Failed to add item: $e";
+    }
   }
 
   Future<void> deleteCanteenItem(String itemId) async {
-    await _firestore.collection('canteen_items').doc(itemId).delete();
+    try {
+      await _firestore.collection('canteen_items').doc(itemId).delete().timeout(const Duration(seconds: 10));
+    } catch (e) {
+      throw "Failed to delete item: $e";
+    }
   }
 
   Future<void> updateCanteenItem(String itemId, Map<String, dynamic> itemData) async {
-    await _firestore.collection('canteen_items').doc(itemId).update(itemData);
+    try {
+      await _firestore.collection('canteen_items').doc(itemId).update(itemData).timeout(const Duration(seconds: 10));
+    } catch (e) {
+      throw "Failed to update item: $e";
+    }
   }
 
   // Generate Unique Order ID (Short and readable)
@@ -49,25 +61,31 @@ class CanteenService {
     required String collegeId,
     String? transactionId,
   }) async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw "You must be logged in to place an order.";
 
-    String orderId = _generateOrderId();
+      if (items.isEmpty) throw "Your cart is empty.";
 
-    await _firestore.collection('orders').add({
-      'orderId': orderId,
-      'userId': user.uid,
-      'userName': userName,
-      'userRole': userRole,
-      'collegeId': collegeId,
-      'items': items,
-      'totalAmount': totalAmount,
-      'status': 'pending', // 'pending', 'confirmed', 'delivered', 'cancelled'
-      'paymentMethod': paymentMethod, // 'Cash', 'Online'
-      'paymentStatus': paymentStatus, // 'Pending', 'Completed'
-      'transactionId': transactionId,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+      String orderId = _generateOrderId();
+
+      await _firestore.collection('orders').add({
+        'orderId': orderId,
+        'userId': user.uid,
+        'userName': userName,
+        'userRole': userRole,
+        'collegeId': collegeId,
+        'items': items,
+        'totalAmount': totalAmount,
+        'status': 'pending',
+        'paymentMethod': paymentMethod,
+        'paymentStatus': paymentStatus,
+        'transactionId': transactionId,
+        'timestamp': FieldValue.serverTimestamp(),
+      }).timeout(const Duration(seconds: 15));
+    } catch (e) {
+      throw "Failed to place order: $e";
+    }
   }
 
   Stream<QuerySnapshot> getAllOrders({String? collegeId}) {
@@ -78,13 +96,17 @@ class CanteenService {
     return query.orderBy('timestamp', descending: true).snapshots();
   }
 
-  Stream<QuerySnapshot> getMyOrders() {
+  Stream<QuerySnapshot> getMyOrders({String? collegeId}) {
     final user = _auth.currentUser;
     if (user == null) return const Stream.empty();
-    return _firestore.collection('orders')
-        .where('userId', isEqualTo: user.uid)
-        .orderBy('timestamp', descending: true)
-        .snapshots();
+    Query query = _firestore.collection('orders')
+        .where('userId', isEqualTo: user.uid);
+    
+    if (collegeId != null) {
+      query = query.where('collegeId', isEqualTo: collegeId);
+    }
+    
+    return query.orderBy('timestamp', descending: true).snapshots();
   }
 
   Future<void> updateOrderStatus(String docId, String status) async {

@@ -53,18 +53,26 @@ class AuthService {
         }
         return user;
       } else {
-        throw Exception("User profile not found in database.");
+        throw "User profile not found in database. Please contact admin.";
       }
-    } catch (e) {
+    } on FirebaseAuthException {
       rethrow;
+    } catch (e) {
+      throw "An unexpected error occurred during sign in.";
     }
   }
 
   Future<void> changePassword(String newPassword) async {
-    User? user = _auth.currentUser;
-    if (user != null) {
-      await user.updatePassword(newPassword);
-      await _firestore.collection('users').doc(user.uid).update({'password': newPassword});
+    try {
+      User? user = _auth.currentUser;
+      if (user != null) {
+        await user.updatePassword(newPassword).timeout(const Duration(seconds: 10));
+        await _firestore.collection('users').doc(user.uid).update({'password': newPassword});
+      } else {
+        throw "User not logged in.";
+      }
+    } catch (e) {
+      rethrow;
     }
   }
 
@@ -111,25 +119,29 @@ class AuthService {
 
   // User Management
   Future<void> signUp(String fullName, String email, String password, String role, {String? collegeId}) async {
-    UserCredential cred = await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
-    
-    // Create raw data
-    Map<String, dynamic> userData = {
-      'fullName': fullName,
-      'email': email,
-      'role': role,
-      'password': password,
-      'profileComplete': false,
-      'firstLogin': true,
-      'isUfmBanned': false,
-      'ufmBanUntil': null,
-      'collegeId': collegeId,
-    };
-    if (role == 'student') {
-      userData['semester'] = 1;
-    }
+    try {
+      UserCredential cred = await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password).timeout(const Duration(seconds: 15));
+      
+      // Create raw data
+      Map<String, dynamic> userData = {
+        'fullName': fullName,
+        'email': email,
+        'role': role,
+        'password': password,
+        'profileComplete': false,
+        'firstLogin': true,
+        'isUfmBanned': false,
+        'ufmBanUntil': null,
+        'collegeId': collegeId,
+      };
+      if (role == 'student') {
+        userData['semester'] = 1;
+      }
 
-    await _firestore.collection('users').doc(cred.user!.uid).set(userData);
+      await _firestore.collection('users').doc(cred.user!.uid).set(userData);
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> signUpUser({
@@ -428,23 +440,35 @@ class AuthService {
   }
 
   // Timetable
-  Stream<DocumentSnapshot> getTimetable(String branch, int semester, String day, {String? collegeId}) {
-    // Unique ID for scoped timetable
-    String id = '${branch}_${semester}_$day';
-    if (collegeId != null) id = '${collegeId}_$id';
-    return _firestore.collection('timetables').doc(id).snapshots();
+  String _getTimetableId(String branch, int semester, String day, String? batch, String? collegeId) {
+    String baseId = '${branch}_${semester}_${batch ?? 'All'}_$day';
+    if (collegeId != null && !branch.startsWith('${collegeId}_')) {
+      return '${collegeId}_$baseId';
+    }
+    return baseId;
   }
 
-  Future<void> setTimetable(String branch, int semester, String day, List<Map<String, dynamic>> slots, String collegeId) async {
-    String id = '${collegeId}_${branch}_${semester}_$day';
-    await _firestore.collection('timetables').doc(id).set({
+  Stream<DocumentSnapshot> getTimetable(String branch, int semester, String day, {String? batch, String? collegeId}) {
+    String id = _getTimetableId(branch, semester, day, batch, collegeId);
+    return _firestore.collection('timetable').doc(id).snapshots();
+  }
+
+  Future<void> setTimetable(String branch, int semester, String day, List<Map<String, dynamic>> slots, String collegeId, {String? batch}) async {
+    String id = _getTimetableId(branch, semester, day, batch, collegeId);
+    await _firestore.collection('timetable').doc(id).set({
       'branch': branch,
       'semester': semester,
+      'batch': batch,
       'day': day,
       'collegeId': collegeId,
       'slots': slots,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<void> deleteTimetable(String branch, int semester, String day, String collegeId, {String? batch}) async {
+    String id = _getTimetableId(branch, semester, day, batch, collegeId);
+    await _firestore.collection('timetable').doc(id).delete();
   }
 
   // Subject Management
@@ -626,7 +650,28 @@ class AuthService {
   Future<void> updateProfile(UserModel user) async => await _firestore.collection('users').doc(user.uid).update(user.toMap());
   Future<void> signOut() => _auth.signOut();
   Stream<QuerySnapshot> getPendingRequests() => _firestore.collection('requests').where('status', isEqualTo: 'pending').orderBy('createdAt', descending: true).snapshots();
-  Future<void> approveRequest(String requestId, String email) async { await _auth.sendPasswordResetEmail(email: email.trim()); await _firestore.collection('requests').doc(requestId).update({'status': 'completed'}); }
+  Future<void> approveRequest(String requestId, String email) async {
+    await _auth.sendPasswordResetEmail(email: email.trim());
+    await _firestore.collection('requests').doc(requestId).update({'status': 'completed'});
+  }
+
+  Future<void> rejectRequest(String requestId, String email, String reason) async {
+    await _firestore.collection('requests').doc(requestId).update({
+      'status': 'rejected',
+      'rejectionReason': reason,
+      'rejectedAt': FieldValue.serverTimestamp(),
+    });
+
+    // Firebase 'Trigger Email' extension માટે 'mail' કલેક્શનમાં ડોક્યુમેન્ટ ઉમેરવું
+    await _firestore.collection('mail').add({
+      'to': [email.trim()],
+      'message': {
+        'subject': 'Update on your College App Request',
+        'text': 'Hello, your request has been rejected. Reason: $reason',
+        'html': '<h3>Request Update</h3><p>Your request has been <b>rejected</b>.</p><p><b>Reason:</b> $reason</p>',
+      },
+    });
+  }
 
   Future<void> assignCoordinator(String batchId, String teacherId) async {
     try {
@@ -686,6 +731,10 @@ class AuthService {
 
   Future<void> saveStudentElectiveSelection(StudentSelectionModel selection) async {
     await _firestore.collection('student_selections').doc('${selection.studentId}_${selection.semester}').set(selection.toMap());
+  }
+
+  Future<void> deleteStudentElectiveSelection(String studentId, int semester) async {
+    await _firestore.collection('student_selections').doc('${studentId}_$semester').delete();
   }
 
   Stream<StudentSelectionModel?> getStudentElectiveSelection(String studentId, int semester) {
