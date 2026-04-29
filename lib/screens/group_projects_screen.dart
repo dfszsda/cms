@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../models/todo_model.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/error_handler.dart';
 
 class GroupProjectsScreen extends StatefulWidget {
   final UserModel? user;
@@ -30,14 +31,18 @@ class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
   }
 
   Future<void> _loadUserData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      if (doc.exists) {
-        setState(() {
-          _internalUser = UserModel.fromMap(doc.data()!, user.uid);
-        });
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+          setState(() {
+            _internalUser = UserModel.fromMap(doc.data()!, user.uid);
+          });
+        }
       }
+    } catch (e) {
+      if (mounted) AppErrorHandler.showError(context, e);
     }
   }
 
@@ -96,7 +101,8 @@ class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
                 child: StreamBuilder<List<UserModel>>(
                   stream: _auth.getStudentsForAttendance(_internalUser!.branch ?? '', selectedSem, _internalUser!.collegeId ?? ''),
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+                    if (!snapshot.hasData) return AppErrorHandler.buildLoadingWidget();
                     final students = snapshot.data!;
                     if (students.isEmpty) return const Center(child: Text("No students found in this semester"));
                     
@@ -140,10 +146,11 @@ class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
               ElevatedButton(
                 onPressed: () async {
                   if (projectNameCtrl.text.isEmpty || selectedStudents.isEmpty || selectedLeader == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill all fields and select leader")));
+                    AppErrorHandler.showError(context, "Please fill all fields and select leader");
                     return;
                   }
 
+                  LoadingOverlay.show(context);
                   try {
                     final project = GroupProject(
                       id: '',
@@ -160,12 +167,14 @@ class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
                     
                     if (context.mounted) {
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Group created successfully!")));
+                      AppErrorHandler.showSuccess(context, "Group created successfully!");
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                      AppErrorHandler.showError(context, e);
                     }
+                  } finally {
+                    LoadingOverlay.hide(context);
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -195,8 +204,8 @@ class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
           ? FirebaseFirestore.instance.collection('projects').where('teacherId', isEqualTo: _internalUser!.uid).snapshots()
           : FirebaseFirestore.instance.collection('projects').where('memberIds', arrayContains: _internalUser!.uid).snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+          if (snapshot.connectionState == ConnectionState.waiting) return AppErrorHandler.buildLoadingWidget();
           
           final projects = snapshot.data!.docs.map((doc) => 
             GroupProject.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
@@ -298,12 +307,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
 
   Future<void> _assignTask() async {
     if (_taskTitleCtrl.text.isEmpty || _selectedDeadline == null || _selectedMemberId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all details and select a member")),
-      );
+      AppErrorHandler.showError(context, "Please fill all details and select a member");
       return;
     }
 
+    LoadingOverlay.show(context);
     try {
       final task = GroupTask(
         id: '',
@@ -327,16 +335,14 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
           _selectedMemberName = null;
         });
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Task assigned successfully!")),
-        );
+        AppErrorHandler.showSuccess(context, "Task assigned successfully!");
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error assigning task: $e")),
-        );
+      if (context.mounted) {
+        AppErrorHandler.showError(context, e);
       }
+    } finally {
+      LoadingOverlay.hide(context);
     }
   }
 
@@ -367,6 +373,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                     .where(FieldPath.documentId, whereIn: widget.project.memberIds)
                     .snapshots(),
                 builder: (context, snapshot) {
+                  if (snapshot.hasError) return Text("Error loading members");
                   if (!snapshot.hasData) return const LinearProgressIndicator();
                   final members = snapshot.data!.docs;
                   return DropdownButtonFormField<String>(
@@ -448,13 +455,23 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               );
               
               if (confirm == true) {
-                await FirebaseFirestore.instance.collection('projects').doc(widget.project.id).delete();
-                // Also delete related tasks
-                final tasks = await FirebaseFirestore.instance.collection('group_tasks').where('projectId', isEqualTo: widget.project.id).get();
-                for (var doc in tasks.docs) {
-                  await doc.reference.delete();
+                LoadingOverlay.show(context);
+                try {
+                  await FirebaseFirestore.instance.collection('projects').doc(widget.project.id).delete();
+                  // Also delete related tasks
+                  final tasks = await FirebaseFirestore.instance.collection('group_tasks').where('projectId', isEqualTo: widget.project.id).get();
+                  for (var doc in tasks.docs) {
+                    await doc.reference.delete();
+                  }
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    AppErrorHandler.showSuccess(context, "Project group deleted");
+                  }
+                } catch (e) {
+                  if (context.mounted) AppErrorHandler.showError(context, e);
+                } finally {
+                  LoadingOverlay.hide(context);
                 }
-                if (context.mounted) Navigator.pop(context);
               }
             },
           )
@@ -467,8 +484,8 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+          if (snapshot.connectionState == ConnectionState.waiting) return AppErrorHandler.buildLoadingWidget();
           
           final tasks = snapshot.data!.docs.map((doc) => 
             GroupTask.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
@@ -490,11 +507,15 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 child: ListTile(
                   leading: Checkbox(
                     value: task.isDone,
-                    onChanged: (isMyTask || isLeader || isTeacher) ? (val) {
-                      FirebaseFirestore.instance.collection('group_tasks').doc(task.id).update({
-                        'isDone': val,
-                        'completedAt': val! ? Timestamp.now() : null,
-                      });
+                    onChanged: (isMyTask || isLeader || isTeacher) ? (val) async {
+                      try {
+                        await FirebaseFirestore.instance.collection('group_tasks').doc(task.id).update({
+                          'isDone': val,
+                          'completedAt': val! ? Timestamp.now() : null,
+                        });
+                      } catch (e) {
+                        if (context.mounted) AppErrorHandler.showError(context, e);
+                      }
                     } : null,
                   ),
                   title: Text(
@@ -515,7 +536,13 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                   ),
                   trailing: (isLeader || isTeacher) ? IconButton(
                     icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    onPressed: () => FirebaseFirestore.instance.collection('group_tasks').doc(task.id).delete(),
+                    onPressed: () async {
+                      try {
+                        await FirebaseFirestore.instance.collection('group_tasks').doc(task.id).delete();
+                      } catch (e) {
+                        if (context.mounted) AppErrorHandler.showError(context, e);
+                      }
+                    },
                   ) : null,
                 ),
               );

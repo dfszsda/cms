@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/error_handler.dart';
 import 'student_detail_screen.dart';
 
 class StudentsListScreen extends StatefulWidget {
@@ -156,6 +157,9 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
       return StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('batches').snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Text("Error: ${AppErrorHandler.getErrorMessage(snapshot.error)}", style: const TextStyle(color: Colors.white70));
+          }
           if (!snapshot.hasData) return const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)));
           final batches = snapshot.data!.docs;
           return _buildSearchableDropdownField(
@@ -179,6 +183,9 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
       return StreamBuilder<List<UserModel>>(
         stream: _auth.getTeachers(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Text("Error: ${AppErrorHandler.getErrorMessage(snapshot.error)}", style: const TextStyle(color: Colors.white70));
+          }
           if (!snapshot.hasData) return const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)));
           final teachers = snapshot.data!;
           return _buildSearchableDropdownField(
@@ -360,8 +367,12 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
     return StreamBuilder<List<UserModel>>(
       stream: stream,
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+        }
+        
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return AppErrorHandler.buildLoadingWidget();
         }
         
         if (!snapshot.hasData || snapshot.data!.isEmpty) {

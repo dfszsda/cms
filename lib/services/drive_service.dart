@@ -49,8 +49,12 @@ class GoogleDriveService {
 
   Future<drive.File?> uploadFile(File file, String folderId) async {
     try {
+      if (!file.existsSync()) {
+        throw "File does not exist on device.";
+      }
+      
       final driveApi = await _getDriveApi();
-      if (driveApi == null) return null;
+      if (driveApi == null) throw "Could not connect to Google Drive. Please check your account.";
 
       final driveFile = drive.File();
       driveFile.name = file.path.split('/').last;
@@ -60,32 +64,32 @@ class GoogleDriveService {
         driveFile,
         uploadMedia: drive.Media(file.openRead(), file.lengthSync()),
         $fields: 'id, name, mimeType, webViewLink',
-      );
+      ).timeout(const Duration(minutes: 5), onTimeout: () {
+        throw "Upload timed out. Please try again with a better connection.";
+      });
 
       return response;
     } catch (e) {
-      // ignore: avoid_print
-      print("Drive Upload Error: $e");
-      return null;
+      throw "Drive Upload Error: $e";
     }
   }
 
   Future<List<drive.File>?> listFiles(String folderId) async {
     try {
       final driveApi = await _getDriveApi();
-      if (driveApi == null) return null;
+      if (driveApi == null) throw "Could not connect to Google Drive.";
 
       final response = await driveApi.files.list(
         q: "'$folderId' in parents and trashed = false",
         spaces: 'drive',
         $fields: 'files(id, name, mimeType, webViewLink)',
-      );
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        throw "Failed to fetch files from Drive. Request timed out.";
+      });
 
       return response.files;
     } catch (e) {
-      // ignore: avoid_print
-      print("Drive List Error: $e");
-      return null;
+      throw "Drive List Error: $e";
     }
   }
 }

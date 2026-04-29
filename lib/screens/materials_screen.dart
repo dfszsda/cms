@@ -1,10 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:url_launcher/url_launcher.dart';
 import '../services/drive_service.dart';
-import 'package:googleapis/drive/v3.dart' as drive;
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/error_handler.dart';
 
 class MaterialsScreen extends StatefulWidget {
   final String role; // 'teacher' or 'student'
@@ -29,60 +30,62 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
   Future<void> _fetchFiles() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-    final files = await _driveService.listFiles(_folderId);
-    if (!mounted) return;
-    setState(() {
-      _files = files;
-      _isLoading = false;
-    });
+    try {
+      final files = await _driveService.listFiles(_folderId);
+      if (!mounted) return;
+      setState(() {
+        _files = files;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      AppErrorHandler.showError(context, e);
+    }
   }
 
   Future<void> _uploadMaterial() async {
-    FilePickerResult? result = await FilePicker.pickFiles();
+    try {
+      FilePickerResult? result = await FilePicker.pickFiles();
 
-    if (result != null && result.files.single.path != null) {
-      File file = File(result.files.single.path!);
-      
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
-
-      final driveFile = await _driveService.uploadFile(file, _folderId);
-      
-      if (!mounted) return;
-      Navigator.pop(context); // Close loading dialog
-      
-      if (driveFile != null) {
-        // Save metadata to Firestore
-        try {
-          await FirebaseFirestore.instance.collection('materials').add({
-            'fileId': driveFile.id,
-            'name': driveFile.name,
-            'mimeType': driveFile.mimeType,
-            'viewLink': driveFile.webViewLink,
-            'uploadedAt': FieldValue.serverTimestamp(),
-          });
-          
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("File uploaded and saved successfully!")),
-          );
-        } catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Drive upload success, but Firestore error: $e")),
-          );
+      if (result != null && result.files.single.path != null) {
+        File file = File(result.files.single.path!);
+        
+        // 1. Check file size (e.g., limit to 10MB)
+        final bytes = await file.length();
+        if (bytes > 10 * 1024 * 1024) {
+          throw "File is too large. Maximum size allowed is 10MB.";
         }
-        _fetchFiles();
-      } else {
+
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to upload file.")),
-        );
+        LoadingOverlay.show(context);
+
+        try {
+          final driveFile = await _driveService.uploadFile(file, _folderId);
+          
+          if (driveFile != null) {
+            // Save metadata to Firestore
+            await FirebaseFirestore.instance.collection('materials').add({
+              'fileId': driveFile.id,
+              'name': driveFile.name,
+              'mimeType': driveFile.mimeType,
+              'viewLink': driveFile.webViewLink,
+              'uploadedAt': FieldValue.serverTimestamp(),
+            });
+            
+            if (mounted) {
+              AppErrorHandler.showSuccess(context, "File uploaded successfully!");
+              _fetchFiles();
+            }
+          }
+        } catch (e) {
+          if (mounted) AppErrorHandler.showError(context, e);
+        } finally {
+          if (mounted) LoadingOverlay.hide(context);
+        }
       }
+    } catch (e) {
+      if (mounted) AppErrorHandler.showError(context, e);
     }
   }
 
@@ -91,15 +94,21 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
     final Uri url = Uri.parse(webViewLink);
     
     // Using InAppBrowserView keeps the user inside the app
-    if (!await launchUrl(
-      url, 
-      mode: LaunchMode.inAppBrowserView,
-      browserConfiguration: const BrowserConfiguration(showTitle: true),
-    )) {
+    try {
+      if (!await launchUrl(
+        url, 
+        mode: LaunchMode.inAppBrowserView,
+        browserConfiguration: const BrowserConfiguration(showTitle: true),
+      )) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Could not open the file.")),
+          );
+        }
+      }
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not open the file.")),
-        );
+        AppErrorHandler.showError(context, "Could not open the file: $e");
       }
     }
   }
@@ -133,19 +142,21 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _files == null || _files!.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.folder_open, size: 80, color: Colors.grey[400]),
-                      const SizedBox(height: 16),
-                      const Text("No materials found in the folder.", style: TextStyle(color: Colors.grey)),
-                    ],
-                  ),
-                )
-              : ListView.builder(
+          ? AppErrorHandler.buildLoadingWidget()
+          : _files == null
+              ? AppErrorHandler.buildErrorWidget("Failed to load materials.", _fetchFiles)
+              : _files!.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.folder_open, size: 80, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          const Text("No materials found in the folder.", style: TextStyle(color: Colors.grey)),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _files!.length,
                   itemBuilder: (context, index) {
@@ -157,7 +168,7 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                            color: theme.colorScheme.primary.withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(_getFileIcon(file.mimeType), color: theme.colorScheme.primary),

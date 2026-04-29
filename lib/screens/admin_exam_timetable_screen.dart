@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/exam_timetable_model.dart';
 import '../services/auth_service.dart';
+import '../services/error_handler.dart';
 import 'package:intl/intl.dart';
 
 class AdminExamTimetableScreen extends StatefulWidget {
@@ -84,6 +85,7 @@ class _AdminExamTimetableScreenState extends State<AdminExamTimetableScreen> {
                 StreamBuilder<QuerySnapshot>(
                   stream: _auth.getBranches(collegeId: widget.collegeId),
                   builder: (context, snap) {
+                    if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
                     if (!snap.hasData) return const LinearProgressIndicator();
                     return DropdownButtonFormField<String>(
                       decoration: const InputDecoration(labelText: "Select Branch", border: OutlineInputBorder()),
@@ -179,6 +181,7 @@ class _AdminExamTimetableScreenState extends State<AdminExamTimetableScreen> {
     return StreamBuilder<QuerySnapshot>(
       stream: _auth.getSubjects(_selectedBranch ?? '', _selectedSemester, collegeId: widget.collegeId),
       builder: (context, snap) {
+        if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
         if (!snap.hasData) return const LinearProgressIndicator();
         final subjects = snap.data!.docs.map((d) => d['name'] as String).toList();
         
@@ -305,15 +308,17 @@ class _AdminExamTimetableScreenState extends State<AdminExamTimetableScreen> {
       createdAt: DateTime.now(),
     );
 
-    final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
-
+    LoadingOverlay.show(context);
     try {
       await _auth.setExamTimetable(timetable, widget.collegeId!);
-      messenger.showSnackBar(const SnackBar(content: Text("Exam Timetable Published Successfully!")));
-      navigator.pop();
+      if (mounted) {
+        AppErrorHandler.showSuccess(context, "Exam Timetable Published Successfully!");
+        Navigator.pop(context);
+      }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (mounted) AppErrorHandler.showError(context, e);
+    } finally {
+      if (mounted) LoadingOverlay.hide(context);
     }
   }
 }

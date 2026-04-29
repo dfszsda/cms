@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/canteen_service.dart';
 import '../services/auth_service.dart';
 import 'package:intl/intl.dart';
+import '../services/error_handler.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -17,29 +18,40 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   final CanteenService canteenService = CanteenService();
   final AuthService authService = AuthService();
   String _userRole = 'student';
+  String? _collegeId;
 
   @override
   void initState() {
     super.initState();
-    _loadUserRole();
+    _loadUserData();
   }
 
-  Future<void> _loadUserRole() async {
+  Future<void> _loadUserData() async {
     try {
-      final users = await authService.getAllUsers().first;
-      final currentUser = users.firstWhere((u) => u.uid == authService.currentUser?.uid);
-      if (mounted) {
-        setState(() {
-          _userRole = currentUser.role;
-        });
+      final user = authService.currentUser;
+      if (user != null) {
+        final userData = await authService.getUserModel(user.uid);
+        if (mounted && userData != null) {
+          setState(() {
+            _userRole = userData.role;
+            _collegeId = userData.collegeId;
+          });
+        }
       }
     } catch (e) {
-      debugPrint("Error loading user role: $e");
+      if (mounted) AppErrorHandler.showError(context, e);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_collegeId == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Order History"), centerTitle: true),
+        body: AppErrorHandler.buildLoadingWidget(),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Order History"),
@@ -47,15 +59,14 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: (_userRole == 'retailer' || _userRole == 'admin')
-            ? canteenService.getAllOrders()
-            : canteenService.getMyOrders(),
+            ? canteenService.getAllOrders(collegeId: _collegeId)
+            : canteenService.getMyOrders(collegeId: _collegeId),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
           if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
+            return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+          }
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return AppErrorHandler.buildLoadingWidget();
           }
 
           final docs = snapshot.data?.docs ?? [];

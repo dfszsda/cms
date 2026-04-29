@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../models/semester_config_model.dart';
+import '../models/student_selection_model.dart';
 
 class SemesterManagementScreen extends StatefulWidget {
   final String? collegeId;
@@ -12,10 +13,26 @@ class SemesterManagementScreen extends StatefulWidget {
   State<SemesterManagementScreen> createState() => _SemesterManagementScreenState();
 }
 
-class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
+class _SemesterManagementScreenState extends State<SemesterManagementScreen> with SingleTickerProviderStateMixin {
   final AuthService _auth = AuthService();
   String? _selectedBranchId;
   int _selectedSemester = 1;
+  late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,15 +44,189 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF1E293B),
         elevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.indigo,
+          unselectedLabelColor: Colors.grey,
+          indicatorColor: Colors.indigo,
+          tabs: const [
+            Tab(text: "Window Config"),
+            Tab(text: "Student Reset"),
+          ],
+        ),
       ),
       body: Column(
         children: [
           _buildFilters(),
           const Divider(height: 1),
-          Expanded(child: _buildBranchConfigList()),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildBranchConfigList(),
+                _buildStudentResetList(),
+              ],
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildStudentResetList() {
+    if (_selectedBranchId == null) {
+      return const Center(
+        child: Text("Please select a branch and semester first", style: TextStyle(color: Colors.grey)),
+      );
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: "Search student by name...",
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+            onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<List<UserModel>>(
+            stream: _auth.getStudentsBySemester(_selectedSemester, collegeId: widget.collegeId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              
+              final students = (snapshot.data ?? []).where((s) {
+                final matchBranch = s.branch == _selectedBranchId;
+                final matchName = s.fullName.toLowerCase().contains(_searchQuery);
+                return matchBranch && matchName;
+              }).toList();
+
+              if (students.isEmpty) {
+                return const Center(child: Text("No students found."));
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: students.length,
+                itemBuilder: (context, index) {
+                  final student = students[index];
+                  return StreamBuilder<StudentSelectionModel?>(
+                    stream: _auth.getStudentElectiveSelection(student.uid, _selectedSemester),
+                    builder: (context, selectionSnap) {
+                      final selection = selectionSnap.data;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: ExpansionTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.indigo.withOpacity(0.1),
+                            child: Text(student.fullName[0], style: const TextStyle(color: Colors.indigo)),
+                          ),
+                          title: Text(student.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(selection == null ? "No selection made" : "Subjects selected"),
+                          children: [
+                            if (selection != null) ...[
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                child: StreamBuilder<QuerySnapshot>(
+                                  stream: _auth.getAvailableElectives(student.branch ?? '', _selectedSemester, widget.collegeId ?? ''),
+                                  builder: (context, subSnap) {
+                                    if (!subSnap.hasData) return const LinearProgressIndicator();
+                                    final subjects = subSnap.data!.docs;
+                                    final selectedNames = subjects
+                                        .where((doc) => selection.selectedSubjectIds.contains(doc.id))
+                                        .map((doc) => doc.get('name') as String)
+                                        .toList();
+                                    
+                                    return Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text("Current Selections:", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                        const SizedBox(height: 4),
+                                        ...selectedNames.map((name) => Padding(
+                                          padding: const EdgeInsets.only(bottom: 4),
+                                          child: Text("• $name", style: const TextStyle(fontWeight: FontWeight.w500)),
+                                        )),
+                                        const SizedBox(height: 12),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: ElevatedButton.icon(
+                                            onPressed: () => _resetStudentSelection(student),
+                                            icon: const Icon(Icons.refresh, size: 18),
+                                            label: const Text("Allow Re-selection"),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red.withOpacity(0.1),
+                                              foregroundColor: Colors.red,
+                                              elevation: 0,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ),
+                            ] else ...[
+                              const Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Text("Student hasn't selected any subjects yet.", style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _resetStudentSelection(UserModel student) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Reset Selection?"),
+        content: Text("Are you sure you want to allow ${student.fullName} to select their subjects again for Sem $_selectedSemester?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Yes, Reset"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await _auth.deleteStudentElectiveSelection(student.uid, _selectedSemester);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Selection reset for ${student.fullName}")),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildFilters() {
@@ -293,7 +484,7 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (sbContext, setDialogState) => AlertDialog(
           title: const Text("Setup Selection Window"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -307,7 +498,7 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
                   : "${selectedRange!.start.day}/${selectedRange!.start.month} - ${selectedRange!.end.day}/${selectedRange!.end.month}"),
                 onPressed: isSaving ? null : () async {
                   final range = await showDateRangePicker(
-                    context: context,
+                    context: sbContext,
                     initialDateRange: selectedRange,
                     firstDate: DateTime.now().subtract(const Duration(days: 30)),
                     lastDate: DateTime.now().add(const Duration(days: 365)),
@@ -331,6 +522,7 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
             ),
             ElevatedButton(
               onPressed: (selectedRange == null || isSaving) ? null : () async {
+                final messenger = ScaffoldMessenger.of(context);
                 setDialogState(() => isSaving = true);
                 try {
                   if (widget.collegeId == null || widget.collegeId!.isEmpty) {
@@ -351,7 +543,7 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
                   
                   if (ctx.mounted) Navigator.pop(ctx);
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       const SnackBar(
                         content: Text("Configuration saved successfully!"),
                         backgroundColor: Colors.green,

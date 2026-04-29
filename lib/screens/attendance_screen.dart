@@ -1,4 +1,4 @@
-// ignore_for_file: unused_local_variable, prefer_final_fields, deprecated_member_use
+// ignore_for_file: unused_field, unused_local_variable, prefer_final_fields, deprecated_member_use
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +11,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import '../models/leave_model.dart';
+import '../services/error_handler.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final String? teacherBranch; // Nullable to detect student vs teacher
@@ -105,36 +106,42 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-            ElevatedButton(
+              ElevatedButton(
               onPressed: () async {
                 if (titleController.text.isNotEmpty && widget.teacherBranch != null && widget.collegeId != null) {
-                  final messenger = ScaffoldMessenger.of(context);
-                  final navigator = Navigator.of(context);
-                  
-                  // If it's a Saturday and contains "Working", we can flag it differently or just store it in a special collection
-                  bool isWorkingSaturday = holidayDate.weekday == DateTime.saturday && 
-                                           titleController.text.toLowerCase().contains("working");
+                  LoadingOverlay.show(context);
+                  try {
+                    // If it's a Saturday and contains "Working", we can flag it differently or just store it in a special collection
+                    bool isWorkingSaturday = holidayDate.weekday == DateTime.saturday && 
+                                             titleController.text.toLowerCase().contains("working");
 
-                  if (isWorkingSaturday) {
-                    await _firestore.collection('working_saturdays').add({
-                      'date': Timestamp.fromDate(DateTime(holidayDate.year, holidayDate.month, holidayDate.day)),
-                      'title': titleController.text.trim(),
-                      'branchId': widget.teacherBranch,
-                      'teacherId': _auth.currentUser?.uid,
-                      'collegeId': widget.collegeId,
-                      'createdAt': FieldValue.serverTimestamp(),
-                    });
-                  } else {
-                    await _auth.addHoliday(
-                      date: holidayDate,
-                      title: titleController.text.trim(),
-                      branchId: widget.teacherBranch!,
-                      collegeId: widget.collegeId!,
-                    );
+                    if (isWorkingSaturday) {
+                      await _firestore.collection('working_saturdays').add({
+                        'date': Timestamp.fromDate(DateTime(holidayDate.year, holidayDate.month, holidayDate.day)),
+                        'title': titleController.text.trim(),
+                        'branchId': widget.teacherBranch,
+                        'teacherId': _auth.currentUser?.uid,
+                        'collegeId': widget.collegeId,
+                        'createdAt': FieldValue.serverTimestamp(),
+                      });
+                    } else {
+                      await _auth.addHoliday(
+                        date: holidayDate,
+                        title: titleController.text.trim(),
+                        branchId: widget.teacherBranch!,
+                        collegeId: widget.collegeId!,
+                      );
+                    }
+                    
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      AppErrorHandler.showSuccess(context, isWorkingSaturday ? "Working Saturday Announced!" : "Holiday Added!");
+                    }
+                  } catch (e) {
+                    if (context.mounted) AppErrorHandler.showError(context, e);
+                  } finally {
+                    LoadingOverlay.hide(context);
                   }
-                  
-                  navigator.pop();
-                  messenger.showSnackBar(SnackBar(content: Text(isWorkingSaturday ? "Working Saturday Announced!" : "Holiday Added!")));
                 }
               },
               child: const Text("Add"),
@@ -203,6 +210,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     child: StreamBuilder<QuerySnapshot>(
                       stream: _auth.getSubjects(widget.teacherBranch!, _selectedSemester, collegeId: widget.collegeId, teacherId: _auth.currentUser?.uid),
                       builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Text("Error: ${AppErrorHandler.getErrorMessage(snapshot.error)}", style: const TextStyle(fontSize: 10));
+                        }
                         if (snapshot.hasData) {
                           final docs = snapshot.data!.docs;
                           // ચેક કરો કે સિલેક્ટ કરેલી સબ્જેક્ટ ID લિસ્ટમાં છે કે નહીં
@@ -266,7 +276,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           child: StreamBuilder<List<UserModel>>(
             stream: _auth.getStudentsForAttendance(widget.teacherBranch!, _selectedSemester, widget.collegeId!),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              if (snapshot.hasError) {
+                return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) return AppErrorHandler.buildLoadingWidget();
               if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("No students found."));
 
               final students = snapshot.data!;
@@ -345,9 +358,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ),
         Padding(
           padding: const EdgeInsets.all(16.0),
-          child: _isSaving 
-            ? const CircularProgressIndicator()
-            : ElevatedButton(
+          child: ElevatedButton(
               onPressed: _handleSaveAttendance,
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),
@@ -375,7 +386,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 return StreamBuilder<List<LeaveModel>>(
                   stream: _auth.getStudentLeaves(widget.student!.uid),
                   builder: (context, leaveSnap) {
-                    if (attendanceSnap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                    if (attendanceSnap.hasError) return AppErrorHandler.buildErrorWidget(attendanceSnap.error, () => setState(() {}));
+                    if (holidaySnap.hasError) return AppErrorHandler.buildErrorWidget(holidaySnap.error, () => setState(() {}));
+                    if (workingSatSnap.hasError) return AppErrorHandler.buildErrorWidget(workingSatSnap.error, () => setState(() {}));
+                    if (leaveSnap.hasError) return AppErrorHandler.buildErrorWidget(leaveSnap.error, () => setState(() {}));
+
+                    if (attendanceSnap.connectionState == ConnectionState.waiting) return AppErrorHandler.buildLoadingWidget();
                     
                     final attendanceDocs = attendanceSnap.data?.docs ?? [];
                     final holidayDocs = holidaySnap.data?.docs ?? [];
@@ -732,20 +748,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _handleSaveAttendance() async {
-    final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
-
     if (_selectedSubject == null || _selectedSubjectId == null) {
-      messenger.showSnackBar(const SnackBar(content: Text("Please select a subject.")));
+      AppErrorHandler.showError(context, "Please select a subject.");
       return;
     }
     
     if (_presentStudents.isEmpty && _absentStudents.isEmpty) {
-      messenger.showSnackBar(const SnackBar(content: Text("Please mark attendance for students.")));
+      AppErrorHandler.showError(context, "Please mark attendance for students.");
       return;
     }
 
-    setState(() => _isSaving = true);
+    LoadingOverlay.show(context);
     try {
       await _auth.submitAttendance(
         branch: widget.teacherBranch!,
@@ -758,12 +771,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         collegeId: widget.collegeId!,
       );
       
-      messenger.showSnackBar(const SnackBar(content: Text("Attendance recorded successfully!")));
-      navigator.pop();
+      if (context.mounted) {
+        AppErrorHandler.showSuccess(context, "Attendance recorded successfully!");
+        Navigator.pop(context);
+      }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (mounted) AppErrorHandler.showError(context, e);
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      LoadingOverlay.hide(context);
     }
   }
 

@@ -3,6 +3,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../services/error_handler.dart';
 
 class HolidayScreen extends StatefulWidget {
   final bool isAdmin;
@@ -32,22 +33,30 @@ class _HolidayScreenState extends State<HolidayScreen> {
   }
 
   void _addHoliday() async {
-    if (_titleController.text.isEmpty || _reasonController.text.isEmpty) return;
+    if (_titleController.text.isEmpty || _reasonController.text.isEmpty) {
+      AppErrorHandler.showError(context, "Please fill all fields");
+      return;
+    }
 
-    await FirebaseFirestore.instance.collection('holidays').add({
-      'title': _titleController.text.trim(),
-      'reason': _reasonController.text.trim(),
-      'date': Timestamp.fromDate(_selectedDate),
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    LoadingOverlay.show(context);
+    try {
+      await FirebaseFirestore.instance.collection('holidays').add({
+        'title': _titleController.text.trim(),
+        'reason': _reasonController.text.trim(),
+        'date': Timestamp.fromDate(_selectedDate),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-    if (mounted) {
-      _titleController.clear();
-      _reasonController.clear();
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Holiday added successfully!")),
-      );
+      if (context.mounted) {
+        _titleController.clear();
+        _reasonController.clear();
+        Navigator.pop(context);
+        AppErrorHandler.showSuccess(context, "Holiday added successfully!");
+      }
+    } catch (e) {
+      if (context.mounted) AppErrorHandler.showError(context, e);
+    } finally {
+      if (context.mounted) LoadingOverlay.hide(context);
     }
   }
 
@@ -110,7 +119,8 @@ class _HolidayScreenState extends State<HolidayScreen> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('holidays').orderBy('date').snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+          if (!snapshot.hasData) return AppErrorHandler.buildLoadingWidget();
           
           final holidays = snapshot.data!.docs;
           
@@ -146,7 +156,14 @@ class _HolidayScreenState extends State<HolidayScreen> {
                   trailing: widget.isAdmin 
                     ? IconButton(
                         icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () => holiday.reference.delete(),
+                        onPressed: () async {
+                          try {
+                            await holiday.reference.delete();
+                            if (context.mounted) AppErrorHandler.showSuccess(context, "Holiday deleted");
+                          } catch (e) {
+                            if (context.mounted) AppErrorHandler.showError(context, e);
+                          }
+                        },
                       )
                     : null,
                 ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../models/exam_form_model.dart';
 import '../services/auth_service.dart';
+import '../services/error_handler.dart';
 
 class StudentExamFormScreen extends StatefulWidget {
   final UserModel student;
@@ -26,8 +27,9 @@ class _StudentExamFormScreenState extends State<StudentExamFormScreen> {
       body: StreamBuilder<ExamFormModel?>(
         stream: _auth.getStudentExamForm(widget.student.uid),
         builder: (context, snapshot) {
+          if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return AppErrorHandler.buildLoadingWidget();
           }
           
           final form = snapshot.data;
@@ -141,10 +143,15 @@ class _StudentExamFormScreenState extends State<StudentExamFormScreen> {
   }
 
   void _handleConfirm(String formId) async {
-    final messenger = ScaffoldMessenger.of(context);
-    await _auth.updateExamFormStatus(formId, 'Confirmed');
-    if (!context.mounted) return;
-    messenger.showSnackBar(const SnackBar(content: Text("Exam Form Confirmed!")));
+    LoadingOverlay.show(context);
+    try {
+      await _auth.updateExamFormStatus(formId, 'Confirmed');
+      if (mounted) AppErrorHandler.showSuccess(context, "Exam Form Confirmed!");
+    } catch (e) {
+      if (mounted) AppErrorHandler.showError(context, e);
+    } finally {
+      LoadingOverlay.hide(context);
+    }
   }
 
   void _showRejectDialog(String formId) {
@@ -164,19 +171,24 @@ class _StudentExamFormScreenState extends State<StudentExamFormScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () async {
-              if (_reasonCtrl.text.isEmpty) return;
+              if (_reasonCtrl.text.isEmpty) {
+                AppErrorHandler.showError(ctx, "Please enter a reason");
+                return;
+              }
               
-              final messenger = ScaffoldMessenger.of(context);
-              final navigator = Navigator.of(ctx);
-              
-              await _auth.updateExamFormStatus(formId, 'Rejected', reason: _reasonCtrl.text.trim());
-              
-              if (!ctx.mounted) return;
-
-              navigator.pop();
-              _reasonCtrl.clear();
-              if (!context.mounted) return;
-              messenger.showSnackBar(const SnackBar(content: Text("Form Rejected and Admin notified.")));
+              LoadingOverlay.show(ctx);
+              try {
+                await _auth.updateExamFormStatus(formId, 'Rejected', reason: _reasonCtrl.text.trim());
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  _reasonCtrl.clear();
+                  AppErrorHandler.showSuccess(context, "Form Rejected and Admin notified.");
+                }
+              } catch (e) {
+                if (ctx.mounted) AppErrorHandler.showError(ctx, e);
+              } finally {
+                LoadingOverlay.hide(ctx);
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             child: const Text("Submit Rejection"),

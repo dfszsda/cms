@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/error_handler.dart';
 import 'student_home_screen.dart';
 import 'teacher_home_screen.dart';
 
@@ -39,37 +40,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
     profilePicCtrl = TextEditingController(text: widget.user.profilePic ?? '');
   }
 
+  @override
+  void dispose() {
+    ageCtrl.dispose();
+    genderCtrl.dispose();
+    hobbyCtrl.dispose();
+    aadhaarCtrl.dispose();
+    abcCtrl.dispose();
+    addressCtrl.dispose();
+    phoneCtrl.dispose();
+    extraPhoneCtrl.dispose();
+    profilePicCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _save() async {
-    widget.user
-      ..age = int.tryParse(ageCtrl.text)
-      ..gender = genderCtrl.text.trim()
-      ..hobby = hobbyCtrl.text.trim()
-      ..address = addressCtrl.text.trim()
-      ..phone = phoneCtrl.text.trim()
-      ..furtherPhone = extraPhoneCtrl.text.trim()
-      ..profilePic = profilePicCtrl.text.trim()
-      ..profileComplete = true;
-
-    if (widget.user.role != 'teacher') {
+    FocusScope.of(context).unfocus();
+    LoadingOverlay.show(context);
+    try {
       widget.user
-        ..aadhaar = aadhaarCtrl.text.trim()
-        ..abcId = abcCtrl.text.trim();
-    }
+        ..age = int.tryParse(ageCtrl.text)
+        ..gender = genderCtrl.text.trim()
+        ..hobby = hobbyCtrl.text.trim()
+        ..address = addressCtrl.text.trim()
+        ..phone = phoneCtrl.text.trim()
+        ..furtherPhone = extraPhoneCtrl.text.trim()
+        ..profilePic = profilePicCtrl.text.trim()
+        ..profileComplete = true;
 
-    await _auth.updateProfile(widget.user);
-
-    if (mounted) {
-      if (widget.user.role == 'student') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const StudentHomeScreen()),
-        );
-      } else if (widget.user.role == 'teacher') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const TeacherHomeScreen()),
-        );
+      if (widget.user.role != 'teacher') {
+        widget.user
+          ..aadhaar = aadhaarCtrl.text.trim()
+          ..abcId = abcCtrl.text.trim();
       }
+
+      await _auth.updateProfile(widget.user);
+
+      if (mounted) {
+        AppErrorHandler.showSuccess(context, "Profile updated successfully!");
+        if (widget.user.role == 'student') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const StudentHomeScreen()),
+          );
+        } else if (widget.user.role == 'teacher') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const TeacherHomeScreen()),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) AppErrorHandler.showError(context, e);
+    } finally {
+      if (mounted) LoadingOverlay.hide(context);
     }
   }
 
@@ -85,12 +109,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               controller: TextEditingController(text: widget.user.fullName),
               decoration: const InputDecoration(labelText: "Full Name"),
               enabled: false,
+              readOnly: true,
             ),
             const SizedBox(height: 16),
             TextField(
               controller: TextEditingController(text: widget.user.email),
               decoration: const InputDecoration(labelText: "Email"),
               enabled: false,
+              readOnly: true,
             ),
             const SizedBox(height: 16),
             TextField(controller: profilePicCtrl, decoration: const InputDecoration(labelText: "Profile Photo URL")),

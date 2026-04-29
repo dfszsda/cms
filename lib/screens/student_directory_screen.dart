@@ -1,8 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cms/screens/student_detail_screen.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
-import 'student_detail_screen.dart';
+import '../services/error_handler.dart';
 
 class StudentDirectoryScreen extends StatefulWidget {
   final UserModel viewer;
@@ -87,6 +88,7 @@ class _StudentDirectoryScreenState extends State<StudentDirectoryScreen> {
       return StreamBuilder<QuerySnapshot>(
         stream: _auth.getAllBatches(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
           if (!snapshot.hasData) return const LinearProgressIndicator();
           final batches = snapshot.data!.docs;
           return _buildSearchableDropdown<DocumentSnapshot>(
@@ -121,6 +123,7 @@ class _StudentDirectoryScreenState extends State<StudentDirectoryScreen> {
       return StreamBuilder<List<UserModel>>(
         stream: _auth.getTeachers(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
           if (!snapshot.hasData) return const LinearProgressIndicator();
           final teachers = snapshot.data!;
           return _buildSearchableDropdown<UserModel>(
@@ -257,7 +260,8 @@ class _StudentDirectoryScreenState extends State<StudentDirectoryScreen> {
     return StreamBuilder<List<UserModel>>(
       stream: stream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+        if (snapshot.connectionState == ConnectionState.waiting) return AppErrorHandler.buildLoadingWidget();
         if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("No students found."));
 
         final students = snapshot.data!.where((s) {

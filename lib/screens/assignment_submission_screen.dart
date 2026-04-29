@@ -1,10 +1,11 @@
-// ignore_for_file: unused_element
+// ignore_for_file: unused_field, unused_element
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/user_model.dart';
+import '../services/error_handler.dart';
 
 class AssignmentSubmissionScreen extends StatefulWidget {
   final UserModel user;
@@ -17,7 +18,6 @@ class AssignmentSubmissionScreen extends StatefulWidget {
 class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen> {
   final _urlController = TextEditingController();
   PlatformFile? _pickedFile;
-  bool _isUploading = false;
 
   Future<void> _pickFile() async {
     final result = await FilePicker.pickFiles(
@@ -35,42 +35,44 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
 
   Future<void> _submitAssignment(String assignmentId, String title, {String? existingSubmissionId}) async {
     if (_urlController.text.isEmpty && _pickedFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please provide a file or a link")));
+      AppErrorHandler.showError(context, "Please provide a file or a link");
       return;
     }
 
-    setState(() => _isUploading = true);
+    LoadingOverlay.show(context);
 
     String finalUrl = _urlController.text.trim();
     String fileName = _pickedFile?.name ?? "Link";
 
     // In a real app: upload _pickedFile to Firebase Storage and get URL
     
-    final submissionData = {
-      'assignmentId': assignmentId,
-      'assignmentTitle': title,
-      'studentId': widget.user.uid,
-      'studentName': widget.user.fullName,
-      'branchId': widget.user.branch,
-      'fileUrl': finalUrl,
-      'fileName': fileName,
-      'status': 'pending',
-      'submittedAt': FieldValue.serverTimestamp(),
-    };
+    try {
+      final submissionData = {
+        'assignmentId': assignmentId,
+        'assignmentTitle': title,
+        'studentId': widget.user.uid,
+        'studentName': widget.user.fullName,
+        'branchId': widget.user.branch,
+        'fileUrl': finalUrl,
+        'fileName': fileName,
+        'status': 'pending',
+        'submittedAt': FieldValue.serverTimestamp(),
+      };
 
-    if (existingSubmissionId != null) {
-      await FirebaseFirestore.instance.collection('submissions').doc(existingSubmissionId).update(submissionData);
-    } else {
-      await FirebaseFirestore.instance.collection('submissions').add(submissionData);
-    }
+      if (existingSubmissionId != null) {
+        await FirebaseFirestore.instance.collection('submissions').doc(existingSubmissionId).update(submissionData);
+      } else {
+        await FirebaseFirestore.instance.collection('submissions').add(submissionData);
+      }
 
-    setState(() => _isUploading = false);
-
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Assignment submitted successfully!")),
-      );
+      if (mounted) {
+        AppErrorHandler.showSuccess(context, "Assignment submitted successfully!");
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) AppErrorHandler.showError(context, e);
+    } finally {
+      if (mounted) LoadingOverlay.hide(context);
     }
   }
 
@@ -110,8 +112,8 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
             ElevatedButton(
-              onPressed: _isUploading ? null : () => _submitAssignment(assignmentId, title, existingSubmissionId: existingSubmissionId),
-              child: _isUploading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text("Submit"),
+              onPressed: () => _submitAssignment(assignmentId, title, existingSubmissionId: existingSubmissionId),
+              child: const Text("Submit"),
             ),
           ],
         ),
@@ -138,7 +140,8 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
             .where('batchId', isEqualTo: widget.user.batch)
             .snapshots(),
         builder: (context, assignmentSnap) {
-          if (!assignmentSnap.hasData) return const Center(child: CircularProgressIndicator());
+          if (assignmentSnap.hasError) return AppErrorHandler.buildErrorWidget(assignmentSnap.error, () => setState(() {}));
+          if (!assignmentSnap.hasData) return AppErrorHandler.buildLoadingWidget();
           
               final assignmentsDocs = assignmentSnap.data!.docs;
               
@@ -148,7 +151,8 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
                     .where('studentId', isEqualTo: widget.user.uid)
                     .snapshots(),
                 builder: (context, submissionSnap) {
-                  if (!submissionSnap.hasData) return const Center(child: CircularProgressIndicator());
+                  if (submissionSnap.hasError) return AppErrorHandler.buildErrorWidget(submissionSnap.error, () => setState(() {}));
+                  if (!submissionSnap.hasData) return AppErrorHandler.buildLoadingWidget();
                   
                   final submissionDocs = submissionSnap.data!.docs;
                   

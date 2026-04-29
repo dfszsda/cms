@@ -1,13 +1,28 @@
+// ignore_for_file: unnecessary_import
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:ui';
 import 'screens/login_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // 1. Global Flutter Error Handling
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint("Global Flutter Error: ${details.exception}");
+  };
+
+  // 2. Global Asynchronous Error Handling
+  WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+    debugPrint("Global Async Error: $error");
+    return true;
+  };
+
   try {
-    // Initialize Firebase with corrected credentials from google-services.json
+    // Initialize Firebase
     await Firebase.initializeApp(
       options: const FirebaseOptions(
         apiKey: "AIzaSyCG2wyHZrGQELklQTDeBhd2s-Yn-xyo9Uc",
@@ -33,6 +48,40 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'College App',
       debugShowCheckedModeBanner: false,
+      // 3. Custom Error Widget for UI crashes
+      builder: (context, child) {
+        ErrorWidget.builder = (details) {
+          return Material(
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Oops! Something went wrong',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    details.exception.toString(),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                    child: const Text('Back to Home'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        };
+        return child!;
+      },
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(

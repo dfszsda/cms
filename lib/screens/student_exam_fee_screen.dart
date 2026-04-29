@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../models/user_model.dart';
 import '../models/payment_config_model.dart';
+import '../services/error_handler.dart';
 
 class StudentExamFeeScreen extends StatefulWidget {
   final UserModel student;
@@ -52,13 +53,14 @@ class _StudentExamFeeScreenState extends State<StudentExamFeeScreen> {
         _paymentConfig = PaymentConfig.fromFirestore(configDoc.data()!);
       }
     } catch (e) {
-      debugPrint("Error loading data: $e");
+      if (mounted) AppErrorHandler.showError(context, e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    LoadingOverlay.show(context);
     try {
       await FirebaseFirestore.instance.collection('fee_payments').add({
         'studentId': widget.student.uid,
@@ -73,34 +75,28 @@ class _StudentExamFeeScreenState extends State<StudentExamFeeScreen> {
         'timestamp': FieldValue.serverTimestamp(),
       });
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Exam Fee Payment Successful!")),
-        );
+      if (context.mounted) {
+        AppErrorHandler.showSuccess(context, "Exam Fee Payment Successful!");
         Navigator.pop(context);
       }
     } catch (e) {
-      debugPrint("Error saving payment: $e");
+      if (context.mounted) AppErrorHandler.showError(context, e);
+    } finally {
+      LoadingOverlay.hide(context);
     }
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Payment Failed: ${response.message}")),
-    );
+    if (context.mounted) AppErrorHandler.showError(context, "Payment Failed: ${response.message}");
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("External Wallet Selected: ${response.walletName}")),
-    );
+    if (context.mounted) AppErrorHandler.showSuccess(context, "External Wallet Selected: ${response.walletName}");
   }
 
   void _handlePayment() {
     if (_paymentConfig == null || _paymentConfig!.razorpayKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Payment gateway not configured correctly.")),
-      );
+      AppErrorHandler.showError(context, "Payment gateway not configured correctly.");
       return;
     }
 

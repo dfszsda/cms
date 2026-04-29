@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../models/exam_form_model.dart';
 import '../services/auth_service.dart';
+import '../services/error_handler.dart';
 
 class AdminExamFormScreen extends StatefulWidget {
   final String? collegeId;
@@ -70,7 +71,8 @@ class _AdminExamFormScreenState extends State<AdminExamFormScreen> {
             child: StreamBuilder<List<UserModel>>(
               stream: _auth.getStudentsBySemester(_selectedSemester, collegeId: widget.collegeId),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+                if (!snapshot.hasData) return AppErrorHandler.buildLoadingWidget();
                 
                 final students = snapshot.data!.where((s) => 
                   s.fullName.toLowerCase().contains(_searchQuery)
@@ -127,7 +129,8 @@ class _AdminExamFormScreenState extends State<AdminExamFormScreen> {
                 .where('collegeId', isEqualTo: widget.collegeId)
                 .snapshots(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+              if (!snapshot.hasData) return AppErrorHandler.buildLoadingWidget();
               if (snapshot.data!.docs.isEmpty) return const Text("No rejected forms found.");
 
               return ListView.builder(
@@ -341,10 +344,19 @@ class _StudentFormDetailScreenState extends State<StudentFormDetailScreen> with 
                   status: 'Pending',
                   collegeId: widget.collegeId,
                 );
-                await _auth.createOrUpdateExamForm(newForm);
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Exam Form Updated!")));
-                Navigator.pop(context);
+                
+                LoadingOverlay.show(context);
+                try {
+                  await _auth.createOrUpdateExamForm(newForm);
+                  if (context.mounted) {
+                    AppErrorHandler.showSuccess(context, "Exam Form Updated!");
+                    Navigator.pop(context);
+                  }
+                } catch (e) {
+                  if (context.mounted) AppErrorHandler.showError(context, e);
+                } finally {
+                  if (context.mounted) LoadingOverlay.hide(context);
+                }
               },
               style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50), backgroundColor: Colors.indigo, foregroundColor: Colors.white),
               child: Text(widget.form == null ? "CREATE EXAM FORM" : "UPDATE EXAM FORM"),

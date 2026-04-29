@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/canteen_service.dart';
 import '../services/auth_service.dart';
+import '../services/error_handler.dart';
 import 'cart_screen.dart';
 import '../models/user_model.dart';
 
@@ -39,11 +40,17 @@ class _CanteenScreenState extends State<CanteenScreen> {
   }
 
   Future<void> _loadUserInfo() async {
-    final users = await _authService.getAllUsers().first;
-    final user = users.firstWhere((u) => u.uid == _authService.currentUser?.uid);
-    setState(() {
-      _currentUser = user;
-    });
+    try {
+      final users = await _authService.getAllUsers().first;
+      final user = users.firstWhere((u) => u.uid == _authService.currentUser?.uid);
+      setState(() {
+        _currentUser = user;
+      });
+    } catch (e) {
+      if (mounted) {
+        AppErrorHandler.showError(context, e);
+      }
+    }
   }
 
   void _addToCart(Map<String, dynamic> item) {
@@ -59,15 +66,13 @@ class _CanteenScreenState extends State<CanteenScreen> {
         });
       }
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("${item['name']} added to cart!")),
-    );
+    AppErrorHandler.showSuccess(context, "${item['name']} added to cart!");
   }
 
   void _showAddItemDialog({String? itemId, Map<String, dynamic>? existingData}) {
     if (_currentUser?.collegeId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("College ID not found. Please relogin.")));
-        return;
+      AppErrorHandler.showError(context, "College ID not found. Please relogin.");
+      return;
     }
     
     final nameCtrl = TextEditingController(text: existingData?['name']);
@@ -98,18 +103,27 @@ class _CanteenScreenState extends State<CanteenScreen> {
             TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text("Cancel")),
             ElevatedButton(
               onPressed: () async {
-                final navigator = Navigator.of(dialogCtx);
                 final data = {
                   'name': nameCtrl.text,
                   'price': '₹${priceCtrl.text}',
                   'category': category,
                 };
-                if (itemId == null) {
-                  await _canteenService.addCanteenItem(data, _currentUser!.collegeId!);
-                } else {
-                  await _canteenService.updateCanteenItem(itemId, data);
+                LoadingOverlay.show(context);
+                try {
+                  if (itemId == null) {
+                    await _canteenService.addCanteenItem(data, _currentUser!.collegeId!);
+                  } else {
+                    await _canteenService.updateCanteenItem(itemId, data);
+                  }
+                  if (context.mounted) {
+                    Navigator.pop(dialogCtx);
+                    AppErrorHandler.showSuccess(context, itemId == null ? "Item added!" : "Item updated!");
+                  }
+                } catch (e) {
+                  if (context.mounted) AppErrorHandler.showError(context, e);
+                } finally {
+                  if (context.mounted) LoadingOverlay.hide(context);
                 }
-                if (mounted) navigator.pop();
               },
               child: const Text("Save"),
             ),
@@ -122,7 +136,7 @@ class _CanteenScreenState extends State<CanteenScreen> {
   @override
   Widget build(BuildContext context) {
     if (_currentUser == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(body: AppErrorHandler.buildLoadingWidget());
     }
 
     final size = MediaQuery.of(context).size;
@@ -272,8 +286,11 @@ class _CanteenScreenState extends State<CanteenScreen> {
                     stream: _canteenService.getCanteenItems(
                         collegeId: _currentUser!.collegeId),
                     builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+                      }
                       if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
+                        return AppErrorHandler.buildLoadingWidget();
                       }
 
                       var items = snapshot.data!.docs
@@ -336,8 +353,14 @@ class _CanteenScreenState extends State<CanteenScreen> {
                                         IconButton(
                                             icon: const Icon(Icons.delete,
                                                 color: Colors.red),
-                                            onPressed: () => _canteenService
-                                                .deleteCanteenItem(item['id'])),
+                                            onPressed: () async {
+                                              try {
+                                                await _canteenService.deleteCanteenItem(item['id']);
+                                                if (context.mounted) AppErrorHandler.showSuccess(context, "Item deleted");
+                                              } catch (e) {
+                                                if (context.mounted) AppErrorHandler.showError(context, e);
+                                              }
+                                            }),
                                       ],
                                     )
                                   : ElevatedButton(

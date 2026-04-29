@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import '../models/user_model.dart';
 import '../models/leave_model.dart';
 import '../services/auth_service.dart';
+import '../services/error_handler.dart';
 
 class StudentLeaveScreen extends StatefulWidget {
   final UserModel student;
@@ -51,6 +54,7 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
       }
       setState(() => _coordinatorName = "Not Assigned");
     } catch (e) {
+      if (mounted) AppErrorHandler.showError(context, e);
       setState(() => _coordinatorName = "Error loading name");
     }
   }
@@ -150,10 +154,7 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
               ),
             ),
             const SizedBox(height: 30),
-            if (_isUploading)
-              const Center(child: CircularProgressIndicator())
-            else
-              ElevatedButton(
+            ElevatedButton(
                 onPressed: _submitLeaveRequest,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.indigo,
@@ -184,13 +185,12 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
   }
 
   Future<void> _submitLeaveRequest() async {
-    final messenger = ScaffoldMessenger.of(context);
     if (_rangeStart == null || _reasonCtrl.text.isEmpty) {
-      messenger.showSnackBar(const SnackBar(content: Text("Please select dates and enter reason")));
+      AppErrorHandler.showError(context, "Please select dates and enter reason");
       return;
     }
 
-    setState(() => _isUploading = true);
+    LoadingOverlay.show(context);
 
     try {
       // Find coordinator for the student's batch
@@ -206,8 +206,7 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
       }
 
       if (coordinatorId == null) {
-        messenger.showSnackBar(const SnackBar(content: Text("Coordinator not assigned for your batch yet. Contact Admin.")));
-        if (mounted) setState(() => _isUploading = false);
+        AppErrorHandler.showError(context, "Coordinator not assigned for your batch yet. Contact Admin.");
         return;
       }
 
@@ -235,7 +234,7 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
       await FirebaseFirestore.instance.collection('leaves').add(leave.toMap());
       
       if (mounted) {
-        messenger.showSnackBar(const SnackBar(content: Text("Leave request submitted successfully!")));
+        AppErrorHandler.showSuccess(context, "Leave request submitted successfully!");
         _reasonCtrl.clear();
         setState(() {
           _rangeStart = null;
@@ -244,9 +243,9 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
         });
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (mounted) AppErrorHandler.showError(context, e);
     } finally {
-      if (mounted) setState(() => _isUploading = false);
+      LoadingOverlay.hide(context);
     }
   }
 
@@ -254,7 +253,8 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
     return StreamBuilder<List<LeaveModel>>(
       stream: _auth.getStudentLeaves(widget.student.uid),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+        if (!snapshot.hasData) return AppErrorHandler.buildLoadingWidget();
         final leaves = snapshot.data!;
         if (leaves.isEmpty) return const Text("No leave requests found.");
 

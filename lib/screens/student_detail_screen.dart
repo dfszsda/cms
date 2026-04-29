@@ -335,10 +335,34 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                     ListTile(
                       leading: const Icon(Icons.subject, color: Colors.indigo),
                       title: const Text("Current Selections"),
-                      subtitle: Text(selection == null ? "No subjects selected yet." : "Selected IDs: ${selection.selectedSubjectIds.join(', ')}"),
-                      trailing: TextButton(
-                        onPressed: () => _showOverrideDialog(selection),
-                        child: const Text("MANAGE"),
+                      subtitle: selection == null 
+                        ? const Text("No subjects selected yet.") 
+                        : StreamBuilder<QuerySnapshot>(
+                            stream: _auth.getAvailableElectives(widget.student.branch ?? '', widget.student.semester ?? 1, widget.student.collegeId ?? ''),
+                            builder: (context, subSnap) {
+                              if (!subSnap.hasData) return const Text("Loading...");
+                              final subjects = subSnap.data!.docs;
+                              final selectedNames = subjects
+                                  .where((doc) => selection.selectedSubjectIds.contains(doc.id))
+                                  .map((doc) => doc.get('name') as String)
+                                  .toList();
+                              return Text(selectedNames.isEmpty ? "No valid subjects found." : selectedNames.join(', '));
+                            },
+                          ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (selection != null)
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              onPressed: () => _confirmResetSelection(),
+                              tooltip: "Reset Selection",
+                            ),
+                          TextButton(
+                            onPressed: () => _showOverrideDialog(selection),
+                            child: const Text("MANAGE"),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -348,6 +372,30 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           },
         ),
       ],
+    );
+  }
+
+  void _confirmResetSelection() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Reset Selection?"),
+        content: const Text("This will delete the student's current elective choices. They will be asked to select again upon login."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(ctx);
+              await _auth.deleteStudentElectiveSelection(widget.student.uid, widget.student.semester ?? 1);
+              navigator.pop();
+              messenger.showSnackBar(const SnackBar(content: Text("Selection reset successfully.")));
+            },
+            child: const Text("Reset Now"),
+          ),
+        ],
+      ),
     );
   }
 

@@ -5,6 +5,7 @@ import '../models/book_model.dart';
 import '../models/membership_model.dart';
 import '../models/book_order_model.dart';
 import '../models/user_model.dart';
+import '../services/error_handler.dart';
 
 class LibraryScreen extends StatefulWidget {
   final UserModel user;
@@ -43,66 +44,87 @@ class _LibraryScreenState extends State<LibraryScreen> {
         _isLoadingFee = false;
       });
     } catch (e) {
-      debugPrint("Error checking fee status: $e");
+      if (mounted) {
+        AppErrorHandler.showError(context, e);
+      }
       setState(() => _isLoadingFee = false);
     }
   }
 
   Future<void> _checkMembership() async {
-    final doc = await _firestore.collection('library_memberships').doc(widget.user.uid).get();
-    if (doc.exists) {
-      setState(() {
-        _membership = MembershipModel.fromFirestore(doc.data()!);
-        _isLoadingMembership = false;
-      });
-    } else {
-      setState(() {
-        _isLoadingMembership = false;
-      });
+    try {
+      final doc = await _firestore.collection('library_memberships').doc(widget.user.uid).get();
+      if (doc.exists) {
+        setState(() {
+          _membership = MembershipModel.fromFirestore(doc.data()!);
+          _isLoadingMembership = false;
+        });
+      } else {
+        setState(() {
+          _isLoadingMembership = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        AppErrorHandler.showError(context, e);
+      }
+      setState(() => _isLoadingMembership = false);
     }
   }
 
   Future<void> _requestMembership() async {
     if (!_isFeePaid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You must pay your semester fees first to join the library.")),
-      );
+      AppErrorHandler.showError(context, "You must pay your semester fees first to join the library.");
       return;
     }
 
-    await _firestore.collection('library_memberships').doc(widget.user.uid).set({
-      'userId': widget.user.uid,
-      'status': 'Pending',
-      'joinDate': FieldValue.serverTimestamp(),
-    });
-    _checkMembership();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Membership request sent!")));
+    LoadingOverlay.show(context);
+    try {
+      await _firestore.collection('library_memberships').doc(widget.user.uid).set({
+        'userId': widget.user.uid,
+        'status': 'Pending',
+        'joinDate': FieldValue.serverTimestamp(),
+      });
+      await _checkMembership();
+      if (mounted) {
+        AppErrorHandler.showSuccess(context, "Membership request sent!");
+      }
+    } catch (e) {
+      if (mounted) AppErrorHandler.showError(context, e);
+    } finally {
+      if (mounted) LoadingOverlay.hide(context);
     }
   }
 
   Future<void> _placeOrder(BookModel book) async {
     if (_membership == null || _membership!.status != 'Active') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("You need an active membership to order books.")));
+      AppErrorHandler.showError(context, "You need an active membership to order books.");
       return;
     }
 
     if (book.quantity <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Book is currently out of stock.")));
+      AppErrorHandler.showError(context, "Book is currently out of stock.");
       return;
     }
 
-    await _firestore.collection('book_orders').add({
-      'bookId': book.id,
-      'bookTitle': book.title,
-      'userId': widget.user.uid,
-      'userName': widget.user.fullName,
-      'orderDate': FieldValue.serverTimestamp(),
-      'status': 'Pending',
-    });
+    LoadingOverlay.show(context);
+    try {
+      await _firestore.collection('book_orders').add({
+        'bookId': book.id,
+        'bookTitle': book.title,
+        'userId': widget.user.uid,
+        'userName': widget.user.fullName,
+        'orderDate': FieldValue.serverTimestamp(),
+        'status': 'Pending',
+      });
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Book order placed successfully!")));
+      if (mounted) {
+        AppErrorHandler.showSuccess(context, "Book order placed successfully!");
+      }
+    } catch (e) {
+      if (mounted) AppErrorHandler.showError(context, e);
+    } finally {
+      if (mounted) LoadingOverlay.hide(context);
     }
   }
 
@@ -194,8 +216,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
           StreamBuilder<QuerySnapshot>(
             stream: _firestore.collection('books').snapshots(),
             builder: (context, snapshot) {
-              if (snapshot.hasError) return const SliverToBoxAdapter(child: Center(child: Text("Something went wrong")));
-              if (snapshot.connectionState == ConnectionState.waiting) return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
+              if (snapshot.hasError) return SliverToBoxAdapter(child: AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {})));
+              if (snapshot.connectionState == ConnectionState.waiting) return SliverToBoxAdapter(child: AppErrorHandler.buildLoadingWidget());
 
               final books = snapshot.data!.docs.map((doc) => BookModel.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
                 .where((book) => book.title.toLowerCase().contains(_searchQuery) || book.author.toLowerCase().contains(_searchQuery))

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/error_handler.dart';
 
 class AdminAddUserTab extends StatefulWidget {
   final String collegeId;
@@ -20,7 +21,6 @@ class _AdminAddUserTabState extends State<AdminAddUserTab> {
   String _selectedRole = 'student';
   String? _selectedBranchId;
   String? _selectedBatchName;
-  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +77,7 @@ class _AdminAddUserTabState extends State<AdminAddUserTab> {
               StreamBuilder<QuerySnapshot>(
                 stream: _auth.getBranches(collegeId: widget.collegeId),
                 builder: (context, snap) {
+                  if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
                   if (!snap.hasData) return const LinearProgressIndicator();
                   var branches = snap.data!.docs;
                   return DropdownButtonFormField<String>(
@@ -100,6 +101,7 @@ class _AdminAddUserTabState extends State<AdminAddUserTab> {
               StreamBuilder<QuerySnapshot>(
                 stream: _auth.getBatchesByBranch(_selectedBranchId!, collegeId: widget.collegeId),
                 builder: (context, snap) {
+                  if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
                   if (!snap.hasData) return const LinearProgressIndicator();
                   var batches = snap.data!.docs;
                   return DropdownButtonFormField<String>(
@@ -126,22 +128,19 @@ class _AdminAddUserTabState extends State<AdminAddUserTab> {
               ),
             ],
             const SizedBox(height: 40),
-            if (_isLoading) 
-              const Center(child: CircularProgressIndicator())
-            else 
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: _handleCreateUser,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigo, 
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
-                  ),
-                  child: const Text("CREATE ACCOUNT", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton(
+                onPressed: _handleCreateUser,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.indigo, 
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
                 ),
+                child: const Text("CREATE ACCOUNT", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
+            ),
           ],
         ),
       ),
@@ -149,12 +148,12 @@ class _AdminAddUserTabState extends State<AdminAddUserTab> {
   }
 
   Future<void> _handleCreateUser() async {
-    final messenger = ScaffoldMessenger.of(context);
     if (_nameCtrl.text.isEmpty || _emailCtrl.text.isEmpty) {
-      messenger.showSnackBar(const SnackBar(content: Text("Please fill all required fields")));
+      AppErrorHandler.showError(context, "Please fill all required fields");
       return;
     }
-    setState(() => _isLoading = true);
+
+    LoadingOverlay.show(context);
     try {
       await _auth.signUpUser(
         fullName: _nameCtrl.text.trim(),
@@ -165,12 +164,14 @@ class _AdminAddUserTabState extends State<AdminAddUserTab> {
         batch: _selectedBatchName,
         collegeId: widget.collegeId,
       );
-      messenger.showSnackBar(const SnackBar(content: Text("User Created Successfully! Default password: Admin@123")));
-      _nameCtrl.clear(); _emailCtrl.clear();
+      if (mounted) {
+        AppErrorHandler.showSuccess(context, "User Created Successfully! Default password: Admin@123");
+        _nameCtrl.clear(); _emailCtrl.clear();
+      }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (mounted) AppErrorHandler.showError(context, e);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) LoadingOverlay.hide(context);
     }
   }
 }

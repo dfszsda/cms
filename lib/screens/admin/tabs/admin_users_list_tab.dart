@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../services/auth_service.dart';
+import '../../../services/auth_service.dart' show AuthService;
+import '../../../services/error_handler.dart';
 import '../../../models/user_model.dart';
 import '../../../models/college_model.dart';
 
@@ -22,7 +23,8 @@ class _AdminUsersListTabState extends State<AdminUsersListTab> {
       body: StreamBuilder<List<UserModel>>(
         stream: _auth.getAllUsers(collegeId: widget.collegeId),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+          if (!snapshot.hasData) return AppErrorHandler.buildLoadingWidget();
           final users = snapshot.data!.where((u) => u.role != 'admin').toList();
           
           if (users.isEmpty) return const Center(child: Text("No users found in this college."));
@@ -90,7 +92,8 @@ class _AdminUsersListTabState extends State<AdminUsersListTab> {
         content: StreamBuilder<List<CollegeModel>>(
           stream: _auth.getColleges(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData) return const CircularProgressIndicator();
+            if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
+            if (!snapshot.hasData) return const LinearProgressIndicator();
             return DropdownButtonFormField<CollegeModel>(
               decoration: const InputDecoration(labelText: "Select Target College", border: OutlineInputBorder()),
               items: snapshot.data!.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
@@ -102,10 +105,18 @@ class _AdminUsersListTabState extends State<AdminUsersListTab> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () async {
-              if (selectedCol != null) {
+              if (selectedCol == null) return;
+              LoadingOverlay.show(context);
+              try {
                 await _auth.updateTeacherCollege(user.uid, selectedCol!.id);
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User transferred successfully")));
+                if (context.mounted) {
+                  Navigator.pop(ctx);
+                  AppErrorHandler.showSuccess(context, "User transferred successfully");
+                }
+              } catch (e) {
+                if (context.mounted) AppErrorHandler.showError(context, e);
+              } finally {
+                if (context.mounted) LoadingOverlay.hide(context);
               }
             },
             child: const Text("Transfer"),
@@ -124,7 +135,8 @@ class _AdminUsersListTabState extends State<AdminUsersListTab> {
         content: StreamBuilder<QuerySnapshot>(
           stream: _auth.getBranches(collegeId: widget.collegeId),
           builder: (context, snap) {
-            if (!snap.hasData) return const CircularProgressIndicator();
+            if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
+            if (!snap.hasData) return const LinearProgressIndicator();
             return DropdownButtonFormField<String>(
               value: user.branch,
               decoration: const InputDecoration(labelText: "Select Branch", border: OutlineInputBorder()),
@@ -141,10 +153,18 @@ class _AdminUsersListTabState extends State<AdminUsersListTab> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () async {
-              if (tempBranch != null) {
+              if (tempBranch == null) return;
+              LoadingOverlay.show(context);
+              try {
                 await _auth.updateTeacherBranch(user.uid, tempBranch!);
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Branch updated")));
+                if (context.mounted) {
+                  Navigator.pop(ctx);
+                  AppErrorHandler.showSuccess(context, "Branch updated");
+                }
+              } catch (e) {
+                if (context.mounted) AppErrorHandler.showError(context, e);
+              } finally {
+                if (context.mounted) LoadingOverlay.hide(context);
               }
             },
             child: const Text("Update"),

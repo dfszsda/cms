@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/error_handler.dart';
 import '../../../models/user_model.dart';
 
 class AdminUnassignedTab extends StatefulWidget {
@@ -35,7 +36,8 @@ class _AdminUnassignedTabState extends State<AdminUnassignedTab> {
                   .where('coordinatorId', isNull: true)
                   .snapshots(),
               builder: (context, snap) {
-                if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
+                if (!snap.hasData) return AppErrorHandler.buildLoadingWidget();
                 if (snap.data!.docs.isEmpty) {
                   return const Center(child: Text("All batches have coordinators assigned."));
                 }
@@ -76,7 +78,8 @@ class _AdminUnassignedTabState extends State<AdminUnassignedTab> {
         content: StreamBuilder<List<UserModel>>(
           stream: _auth.getTeachers(collegeId: widget.collegeId),
           builder: (ctx, snap) {
-            if (!snap.hasData) return const CircularProgressIndicator();
+            if (snap.hasError) return AppErrorHandler.buildErrorWidget(snap.error, () => setState(() {}));
+            if (!snap.hasData) return const LinearProgressIndicator();
             return DropdownButtonFormField<UserModel>(
               hint: const Text("Select Teacher"),
               items: snap.data!.map((t) => DropdownMenuItem(value: t, child: Text(t.fullName))).toList(),
@@ -88,17 +91,18 @@ class _AdminUnassignedTabState extends State<AdminUnassignedTab> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () async {
-              if (selectedTeacher != null) {
-                try {
-                  await _auth.assignCoordinator(batchId, selectedTeacher!.uid);
-                  if (!ctx.mounted) return;
+              if (selectedTeacher == null) return;
+              LoadingOverlay.show(context);
+              try {
+                await _auth.assignCoordinator(batchId, selectedTeacher!.uid);
+                if (context.mounted) {
                   Navigator.pop(ctx);
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Coordinator assigned!")));
-                } catch (e) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                  AppErrorHandler.showSuccess(context, "Coordinator assigned!");
                 }
+              } catch (e) {
+                if (context.mounted) AppErrorHandler.showError(context, e);
+              } finally {
+                if (context.mounted) LoadingOverlay.hide(context);
               }
             },
             child: const Text("Assign"),

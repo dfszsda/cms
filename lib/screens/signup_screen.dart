@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/error_handler.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -21,15 +22,11 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _signup() async {
     if (nameCtrl.text.isEmpty || emailCtrl.text.isEmpty || passCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all fields"), behavior: SnackBarBehavior.floating),
-      );
+      AppErrorHandler.showError(context, "Please fill all fields");
       return;
     }
     if (passCtrl.text != confirmCtrl.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match"), behavior: SnackBarBehavior.floating),
-      );
+      AppErrorHandler.showError(context, "Passwords do not match");
       return;
     }
 
@@ -43,9 +40,7 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Account created! Please login."), behavior: SnackBarBehavior.floating),
-        );
+        AppErrorHandler.showSuccess(context, "Account created! Please login.");
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -53,9 +48,7 @@ class _SignupScreenState extends State<SignupScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e"), behavior: SnackBarBehavior.floating),
-        );
+        AppErrorHandler.showError(context, e);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
