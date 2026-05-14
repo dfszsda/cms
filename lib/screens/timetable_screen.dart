@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
 import '../services/error_handler.dart';
 import '../models/user_model.dart';
@@ -40,7 +41,18 @@ class _TimetableScreenState extends State<TimetableScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeCurrentDay();
     _loadUserData();
+  }
+
+  void _initializeCurrentDay() {
+    final String today = DateFormat('EEEE').format(DateTime.now());
+    if (_days.contains(today)) {
+      _selectedDay = today;
+    } else {
+      // If today is Sunday or unknown, default to Monday
+      _selectedDay = "Monday";
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -174,7 +186,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                     if (!context.mounted) return;
                     if (dialogContext.mounted) Navigator.pop(dialogContext);
                     
-                    // Use context.mounted check again if needed, or use the context from State
+                    // Use context.Mounted check again if needed, or use the context from State
                     if (!mounted) return;
                     AppErrorHandler.showSuccess(this.context, "Subject Added!");
                   } catch (e) {

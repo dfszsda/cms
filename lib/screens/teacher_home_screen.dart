@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/user_model.dart';
 import '../models/college_model.dart';
 import '../models/leave_model.dart';
@@ -91,6 +92,118 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     } catch (e) {
       if (mounted) AppErrorHandler.showError(context, e);
     }
+  }
+
+  Widget _buildTodaySchedule(ThemeData theme) {
+    if (_currentUser == null || _currentUser?.branch == null) return const SizedBox.shrink();
+
+    final today = DateFormat('EEEE').format(DateTime.now());
+    if (today == "Sunday") return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text("Today's Lectures", style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            TextButton(
+              onPressed: () => Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (_) => TimetableScreen(userRole: 'teacher', userBranch: _currentUser?.branch))
+              ),
+              child: const Text("View Full"),
+            ),
+          ],
+        ),
+        StreamBuilder<DocumentSnapshot>(
+          stream: _auth.getTimetable(
+            _currentUser!.branch!, 
+            1, // Defaulting to Sem 1 or could try to iterate over semesters if needed, but usually teachers check by branch
+            today, 
+            collegeId: _currentUser!.collegeId
+          ),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) return const LinearProgressIndicator();
+            if (!snapshot.hasData || !snapshot.data!.exists) {
+              return _buildEmptyScheduleCard("No lectures scheduled for today.");
+            }
+
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            final List<dynamic> slots = data['slots'] ?? [];
+
+            if (slots.isEmpty) return _buildEmptyScheduleCard("No lectures scheduled.");
+
+            return SizedBox(
+              height: 100,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: slots.length,
+                itemBuilder: (context, index) {
+                  final slot = slots[index];
+                  bool isBreak = slot['type'] == 'Break';
+                  return Container(
+                    width: 200,
+                    margin: const EdgeInsets.only(right: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isBreak ? Colors.orange[50] : Colors.indigo[50],
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: (isBreak ? Colors.orange : Colors.indigo).withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          slot['subject'] ?? 'Untitled',
+                          style: TextStyle(fontWeight: FontWeight.bold, color: isBreak ? Colors.orange[900] : Colors.indigo[900]),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const Spacer(),
+                        Row(
+                          children: [
+                            const Icon(Icons.access_time, size: 12, color: Colors.grey),
+                            const SizedBox(width: 4),
+                            Text(slot['startTime'] ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          ],
+                        ),
+                        if (slot['roomNumber'] != null)
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on_outlined, size: 12, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              Text("Room: ${slot['roomNumber']}", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                            ],
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyScheduleCard(String message) {
+    return Card(
+      elevation: 0,
+      color: Colors.grey[100],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            const Icon(Icons.event_note_rounded, color: Colors.grey),
+            const SizedBox(width: 12),
+            Text(message, style: const TextStyle(color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildNotificationBell() {
@@ -229,6 +342,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                     style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const Text("Academic & Examination Dashboard", style: TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  _buildTodaySchedule(theme),
                   const SizedBox(height: 20),
                   
                   StreamBuilder<List<CollegeModel>>(
