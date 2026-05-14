@@ -7,6 +7,7 @@
     <!-- PptxGenJS and html2canvas for PPT generation -->
     <script src="https://cdn.jsdelivr.net/gh/gitbrent/PptxGenJS@3.12.0/dist/pptxgen.bundle.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
     <style>
         body {
@@ -79,6 +80,34 @@
         .btn-zoho:hover {
             background: #ca8a04;
         }
+        .logo-upload-group {
+            display: flex;
+            gap: 10px;
+            margin-right: 20px;
+            padding-right: 20px;
+            border-right: 1px solid #334155;
+        }
+        .upload-btn {
+            background: #334155;
+            color: #e2e8f0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            border: 1px dashed #475569;
+            transition: all 0.2s;
+        }
+        .upload-btn:hover {
+            background: #475569;
+            border-color: #818cf8;
+        }
+        .upload-btn i {
+            font-size: 16px;
+        }
         #slides-container {
             width: 100%;
             padding: 40px 20px;
@@ -92,6 +121,22 @@
             flex-direction: column;
             align-items: center;
             gap: 15px;
+            cursor: grab;
+            padding: 20px;
+            border-radius: 12px;
+            transition: background 0.2s;
+        }
+        .slide-card:active {
+            cursor: grabbing;
+        }
+        .slide-card.sortable-ghost {
+            opacity: 0.4;
+            background: #334155;
+        }
+        .drag-handle {
+            font-size: 20px;
+            color: #475569;
+            margin-bottom: 5px;
         }
         .slide-label {
             font-size: 14px;
@@ -167,6 +212,18 @@
             <span>CMS Presentation</span>
         </div>
         <div class="btn-group">
+            <div class="logo-upload-group">
+                <label class="upload-btn">
+                    <i class="fas fa-school"></i>
+                    <span>College Logo</span>
+                    <input type="file" hidden accept="image/*" onchange="updateLogo(this, 'college-logo')">
+                </label>
+                <label class="upload-btn">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>Univ. Logo</span>
+                    <input type="file" hidden accept="image/*" onchange="updateLogo(this, 'university-logo')">
+                </label>
+            </div>
             <button class="btn btn-secondary" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
                 <i class="fas fa-arrow-up"></i> Top
             </button>
@@ -194,29 +251,89 @@
     <script>
         const totalSlides = 11;
         const container = document.getElementById('slides-container');
+        const presentationPath = 'modern_presentation/';
 
-        // Create slide previews including Title Slide (0.html)
-        for (let i = 0; i <= totalSlides; i++) {
-            const slideCard = document.createElement('div');
-            slideCard.className = 'slide-card';
+        // Initial order: 11 placed before 7 as requested
+        let slideOrder = [0, 1, 2, 3, 4, 5, 6, 11, 7, 8, 9, 10];
 
-            const label = document.createElement('div');
-            label.className = 'slide-label';
-            label.innerText = i === 0 ? 'Title Slide' : `Slide ${i}`;
-
-            const frameContainer = document.createElement('div');
-            frameContainer.className = 'slide-frame-container';
-
-            const iframe = document.createElement('iframe');
-            iframe.src = `${i}.html`;
-            iframe.id = `slide-frame-${i}`;
-            iframe.loading = 'lazy';
-
-            frameContainer.appendChild(iframe);
-            slideCard.appendChild(label);
-            slideCard.appendChild(frameContainer);
-            container.appendChild(slideCard);
+        function updateLogo(input, elementId) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imageData = e.target.result;
+                    const iframe = document.getElementById('slide-frame-0');
+                    if (iframe) {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        const logoImg = iframeDoc.getElementById(elementId);
+                        if (logoImg) {
+                            logoImg.src = imageData;
+                        }
+                    }
+                    window[elementId + 'Data'] = imageData;
+                    alert((elementId === 'college-logo' ? 'College' : 'University') + ' logo updated!');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
         }
+
+        // Initialize Sortable
+        new Sortable(container, {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            onEnd: function() {
+                // Update internal order array based on DOM
+                const cards = container.querySelectorAll('.slide-card');
+                slideOrder = Array.from(cards).map(card => parseInt(card.getAttribute('data-index')));
+                console.log("New order:", slideOrder);
+            }
+        });
+
+        function renderSlides() {
+            container.innerHTML = '';
+            slideOrder.forEach(i => {
+                const slideCard = document.createElement('div');
+                slideCard.className = 'slide-card';
+                slideCard.setAttribute('data-index', i);
+
+                const handle = document.createElement('div');
+                handle.className = 'drag-handle';
+                handle.innerHTML = '<i class="fas fa-grip-lines"></i>';
+
+                const label = document.createElement('div');
+                label.className = 'slide-label';
+                label.innerText = i === 0 ? 'Title Slide' : `Slide ${i}`;
+
+                const frameContainer = document.createElement('div');
+                frameContainer.className = 'slide-frame-container';
+
+                const iframe = document.createElement('iframe');
+                iframe.src = `${presentationPath}${i}.html`;
+                iframe.id = `slide-frame-${i}`;
+                iframe.loading = 'lazy';
+
+                if (i === 0) {
+                    iframe.onload = function() {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        if (window['college-logoData']) {
+                            const img = iframeDoc.getElementById('college-logo');
+                            if (img) img.src = window['college-logoData'];
+                        }
+                        if (window['university-logoData']) {
+                            const img = iframeDoc.getElementById('university-logo');
+                            if (img) img.src = window['university-logoData'];
+                        }
+                    };
+                }
+
+                frameContainer.appendChild(iframe);
+                slideCard.appendChild(handle);
+                slideCard.appendChild(label);
+                slideCard.appendChild(frameContainer);
+                container.appendChild(slideCard);
+            });
+        }
+
+        renderSlides();
 
         async function generatePPT() {
             const loading = document.getElementById('loading');
@@ -225,54 +342,113 @@
 
             try {
                 const pptx = new PptxGenJS();
-                pptx.layout = 'LAYOUT_WIDE'; // Standard 16:9 widescreen
+                pptx.layout = 'LAYOUT_WIDE';
+                pptx.author = 'Gohil Harisinh';
+                pptx.title = 'CMS & Gokudiyugam - Modern Presentation';
 
-                // Set metadata
-                pptx.author = 'College Management System';
-                pptx.company = 'CMS';
-                pptx.title = 'CMS Project Presentation';
-
-                for (let i = 0; i <= totalSlides; i++) {
-                    progressText.innerText = `Capturing Slide ${i + 1} of ${totalSlides + 1}...`;
-
+                // Loop through slideOrder instead of fixed loop
+                for (const i of slideOrder) {
+                    progressText.innerText = `Converting Slide ${i} to Native PPT objects...`;
                     const iframe = document.getElementById(`slide-frame-${i}`);
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-
-                    // Wait for styles/images in iframe to be ready
-                    await new Promise(resolve => setTimeout(resolve, 800));
-
-                    const slideElement = iframeDoc.querySelector('.slide-container') || iframeDoc.body;
-
-                    const canvas = await html2canvas(slideElement, {
-                        width: 1280,
-                        height: 720,
-                        scale: 2, // 2x scale for high resolution
-                        useCORS: true,
-                        backgroundColor: null,
-                        logging: false
-                    });
-
-                    const imgData = canvas.toDataURL('image/png');
+                    const doc = iframe.contentDocument || iframe.contentWindow.document;
                     const slide = pptx.addSlide();
-                    slide.addImage({
-                        data: imgData,
-                        x: 0,
-                        y: 0,
-                        w: '100%',
-                        h: '100%'
-                    });
+
+                    if (i === 0) {
+                        // TITLE SLIDE
+                        slide.background = { color: '0f172a' };
+
+                        // Accent
+                        slide.addShape(pptx.ShapeType.ellipse, {
+                            x: 9, y: -1, w: 5, h: 5,
+                            fill: { color: '6366f1', transparency: 85 }
+                        });
+
+                        const collegeLogo = doc.getElementById('college-logo')?.src;
+                        const univLogo = doc.getElementById('university-logo')?.src;
+                        if (collegeLogo) slide.addImage({ data: collegeLogo, x: 0.5, y: 0.4, w: 1.5, h: 1.5, sizing: { type: 'contain' } });
+                        if (univLogo) slide.addImage({ data: univLogo, x: 11.3, y: 0.4, w: 1.5, h: 1.5, sizing: { type: 'contain' } });
+
+                        const label = doc.querySelector('.label')?.innerText || "";
+                        const h1 = doc.querySelector('h1')?.innerText.replace(/\n/g, " ") || "";
+                        const h2 = doc.querySelector('h2')?.innerText || "";
+
+                        slide.addText(label, { x: 0, y: 2.2, w: '100%', align: 'center', fontSize: 18, color: '818cf8', bold: true, charSpacing: 5 });
+                        slide.addText(h1, { x: 1, y: 2.8, w: 11.3, align: 'center', fontSize: 44, color: 'ffffff', bold: true });
+                        slide.addText(h2, { x: 1, y: 4.2, w: 11.3, align: 'center', fontSize: 24, color: '94a3b8' });
+
+                        const infoItems = doc.querySelectorAll('.info-item');
+                        infoItems.forEach((item, idx) => {
+                            const labelText = item.querySelector('.info-label')?.innerText || "";
+                            const valText = item.querySelector('.info-value')?.innerText || "";
+                            slide.addText([
+                                { text: labelText + "\n", options: { fontSize: 10, color: '64748b', bold: true } },
+                                { text: valText, options: { fontSize: 14, color: 'e2e8f0' } }
+                            ], { x: 0.8 + (idx * 4.2), y: 6.0, w: 4 });
+                        });
+
+                    } else if (doc.querySelector('.sidebar')) {
+                        // SIDEBAR LAYOUT (e.g., Slide 3)
+                        const sidebar = doc.querySelector('.sidebar');
+                        const main = doc.querySelector('.main');
+
+                        slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 4.5, h: 7.2, fill: { color: '4f46e5' } });
+
+                        const sideH2 = sidebar.querySelector('h2')?.innerText || "";
+                        const sideH1 = sidebar.querySelector('h1')?.innerText || "";
+                        const sideP = sidebar.querySelector('p')?.innerText || "";
+
+                        slide.addText(sideH2, { x: 0.5, y: 2.0, w: 3.5, fontSize: 14, color: 'ffffff', bold: true, charSpacing: 2 });
+                        slide.addText(sideH1, { x: 0.5, y: 2.4, w: 3.5, fontSize: 36, color: 'ffffff', bold: true });
+                        slide.addText(sideP, { x: 0.5, y: 4.2, w: 3.5, fontSize: 14, color: 'ffffff' });
+
+                        const features = main.querySelectorAll('.feature-item');
+                        features.forEach((feat, idx) => {
+                            const title = feat.querySelector('h3')?.innerText || "";
+                            const desc = feat.querySelector('p')?.innerText || "";
+                            slide.addText([
+                                { text: title + "\n", options: { fontSize: 20, color: '0f172a', bold: true } },
+                                { text: desc, options: { fontSize: 14, color: '64748b' } }
+                            ], { x: 5.5, y: 1.5 + (idx * 1.8), w: 6 });
+                        });
+
+                    } else {
+                        // DEFAULT JOURNEY/CONTENT LAYOUT
+                        const h1 = doc.querySelector('h1')?.innerText || "";
+                        slide.addText(h1, { x: 1.5, y: 0.5, w: 10, fontSize: 32, color: '0f172a', bold: true });
+
+                        const steps = doc.querySelectorAll('.step');
+                        steps.forEach((step, idx) => {
+                            const hl = step.querySelector('.highlight')?.innerText || "";
+                            const p = step.querySelector('p:not(.highlight)')?.innerText || "";
+                            slide.addText([
+                                { text: hl + "\n", options: { fontSize: 18, color: '6366f1', bold: true } },
+                                { text: p, options: { fontSize: 14, color: '475569' } }
+                            ], { x: 1.0, y: 1.5 + (idx * 1.5), w: 6 });
+                        });
+
+                        const img = doc.querySelector('#display-image');
+                        if (img && img.style.display !== 'none') {
+                            slide.addImage({ data: img.src, x: 7.5, y: 1.5, w: 5, h: 4, sizing: { type: 'contain' } });
+                        }
+
+                        // Footer tags
+                        const footer = doc.querySelector('.footer-tag');
+                        if (footer) {
+                            const spans = footer.querySelectorAll('span');
+                            spans.forEach((span, idx) => {
+                                slide.addText(span.innerText, { x: 0.8 + (idx * 6), y: 6.5, w: 6, fontSize: 10, color: '94a3b8' });
+                            });
+                        }
+                    }
                 }
 
-                progressText.innerText = 'Finalizing and starting download...';
-                pptx.writeFile({ fileName: 'CMS_Project_Presentation.pptx' });
-
-                setTimeout(() => {
-                    loading.style.display = 'none';
-                }, 2000);
+                progressText.innerText = 'Perfect! Downloading your editable Modern PPTX...';
+                pptx.writeFile({ fileName: 'CMS_Modern_Presentation.pptx' });
+                setTimeout(() => { loading.style.display = 'none'; }, 2000);
 
             } catch (error) {
                 console.error('PPT Generation Error:', error);
-                alert('An error occurred while generating the PPT. Please make sure all slide files (0.html to 11.html) are in the same folder.');
+                alert('Conversion failed. Check console for details.');
                 loading.style.display = 'none';
             }
         }

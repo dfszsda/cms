@@ -270,6 +270,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           ),
           child: Column(
             children: [
+              if (widget.student.enrollmentNo != null) ...[
+                _detailRow(Icons.fingerprint_rounded, "Enrollment Number", widget.student.enrollmentNo!),
+                _divider(),
+              ],
               _detailRow(Icons.email_outlined, "Email Address", widget.student.email),
               _divider(),
               _detailRow(Icons.phone_outlined, "Phone Number", widget.student.phone ?? 'N/A'),

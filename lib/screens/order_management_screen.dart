@@ -105,11 +105,17 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
                               child: Text("Txn ID: ${orderData['transactionId']}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
                             ),
                           const Divider(),
-                          ...items.map((item) => ListTile(
-                            title: Text(item['name']),
-                            trailing: Text("x${item['quantity']}"),
-                            subtitle: Text(item['price']),
-                          )),
+                          ...items.map((item) {
+                            final String itemName = (item['name'] ?? 'Unknown').toString();
+                            final String itemPrice = (item['price'] ?? '0').toString();
+                            final String itemQty = (item['quantity'] ?? '1').toString();
+                            
+                            return ListTile(
+                              title: Text(itemName),
+                              trailing: Text("x$itemQty"),
+                              subtitle: Text(itemPrice),
+                            );
+                          }),
                           if (status == 'pending')
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),

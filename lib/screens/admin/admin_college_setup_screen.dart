@@ -145,10 +145,10 @@ class _AdminCollegeSetupScreenState extends State<AdminCollegeSetupScreen> {
 
               return SliverGrid(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: isDesktop ? 3 : 1,
-                  childAspectRatio: isDesktop ? 1.5 : 3.5,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
+                  crossAxisCount: isDesktop ? 3 : (size.width < 400 ? 1 : 2),
+                  childAspectRatio: isDesktop ? 1.5 : (size.width < 400 ? 3.0 : 1.8),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {

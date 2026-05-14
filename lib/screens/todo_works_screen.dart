@@ -256,10 +256,10 @@ class _TodoWorksScreenState extends State<TodoWorksScreen> with SingleTickerProv
                                   onPressed: () async {
                                     try {
                                       await FirebaseFirestore.instance.collection('todos').doc(task.id).delete();
-                                      if (!mounted) return;
+                                      if (!context.mounted) return;
                                       AppErrorHandler.showSuccess(context, "Task deleted");
                                     } catch (e) {
-                                      if (!mounted) return;
+                                      if (!context.mounted) return;
                                       AppErrorHandler.showError(context, e);
                                     }
                                   },

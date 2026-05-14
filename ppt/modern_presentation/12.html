@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gokudiyugam Workflow</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #0f172a;
+            width: 1280px;
+            height: 720px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .slide {
+            background: white;
+            width: 1280px;
+            height: 720px;
+            padding: 40px 60px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        h1 {
+            color: #1e293b;
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        .diagram-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            flex: 1;
+            min-height: 0;
+        }
+        .diagram-section {
+            padding: 20px;
+            border: 2px solid #f1f5f9;
+            border-radius: 20px;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden; /* Prevent scrollbars */
+        }
+        h2 {
+            color: #475569;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            text-align: center;
+            background: #e2e8f0;
+            padding: 8px;
+            border-radius: 10px;
+        }
+        .mermaid-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Start from top to utilize height */
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+        }
+        .mermaid {
+            width: 100% !important;
+            height: 100% !important;
+            display: flex;
+            justify-content: center;
+        }
+        .mermaid svg {
+            width: 100% !important;
+            height: auto !important;
+            max-height: 100% !important;
+        }
+        .footer-tag {
+            position: absolute;
+            bottom: 30px;
+            left: 60px;
+            right: 60px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+            padding-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="slide">
+        <h1>Gokudiyugam Architecture & Agile</h1>
+
+        <div class="diagram-grid">
+            <div class="diagram-section">
+                <h2>1. System Architecture</h2>
+                <div class="mermaid-container">
+                    <div class="mermaid">
+                        graph TD
+                            App[App] --> Auth{Auth}
+                            Auth --> Dash[Dashboard]
+                            Dash --> DD[Darshan]
+                            Dash --> MP[Media]
+                            Dash --> SM[Sabha]
+
+                            subgraph "Services"
+                                AI[Gemini AI]
+                                FB[Firebase]
+                            end
+                            Dash --- AI
+                            DD --- FB
+                            MP --- FB
+                            SM --- AI
+                    </div>
+                </div>
+            </div>
+
+            <div class="diagram-section">
+                <h2>2. Agile Development</h2>
+                <div class="mermaid-container">
+                    <div class="mermaid">
+                        graph TD
+                            B[Backlog] --> P[Planning]
+                            P --> S[Standup]
+                            S --> D[Dev]
+                            D --> Q[QA Test]
+                            Q --> R[Review]
+                            R --> B
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-tag">
+            <span><strong>Presented By:</strong> Gohil Harisinh Harikrushna_12302080703007</span>
+            <span><strong>Guided By:</strong> Mr. Harsh Goswami</span>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+
+        // Ensure SVGs scale correctly after rendering
+        window.addEventListener('load', () => {
+            const checkExist = setInterval(() => {
+                const svgs = document.querySelectorAll('.mermaid svg');
+                if (svgs.length >= 2) {
+                    svgs.forEach(svg => {
+                        svg.style.maxWidth = '100%';
+                        svg.style.maxHeight = '100%';
+                        svg.style.height = 'auto';
+                        svg.removeAttribute('height'); // Allow CSS to control height
+                    });
+                    clearInterval(checkExist);
+                }
+            }, 100);
+        });
+    </script>
+</body>
+</html>

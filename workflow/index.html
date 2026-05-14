@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMS & Gokudiyugam - Project Workflow</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --card-bg: #f8fafc;
+            --primary: #4f46e5;
+            --secondary: #6366f1;
+            --accent: #10b981;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: #f1f5f9;
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 50px 20px;
+            min-height: 100vh;
+        }
+
+        .capture-area {
+            width: 1100px;
+            background: var(--bg-color);
+            padding: 60px;
+            border-radius: 30px;
+            position: relative;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .header h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin-top: 10px;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 40px;
+            color: var(--secondary);
+            border-left: 5px solid var(--secondary);
+            padding-left: 20px;
+        }
+
+        /* Project Workflow Grid */
+        .workflow-timeline {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 20px;
+            margin-bottom: 80px;
+            position: relative;
+        }
+
+        .workflow-timeline::before {
+            content: '';
+            position: absolute;
+            top: 45px;
+            left: 50px;
+            right: 50px;
+            height: 2px;
+            background: var(--border-color);
+            z-index: 0;
+        }
+
+        .wf-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            z-index: 1;
+        }
+
+        .wf-icon {
+            width: 90px;
+            height: 90px;
+            background: var(--card-bg);
+            border: 3px solid var(--primary);
+            border-radius: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.8rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+        }
+
+        .wf-step:hover .wf-icon {
+            transform: translateY(-10px) rotate(5deg);
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.2);
+        }
+
+        .wf-step h3 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        .wf-step p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Agile Section */
+        .agile-container {
+            display: flex;
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 40px;
+            gap: 50px;
+            align-items: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .agile-details {
+            flex: 1.2;
+        }
+
+        .agile-list {
+            list-style: none;
+        }
+
+        .agile-item {
+            margin-bottom: 25px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .agile-item i {
+            color: var(--accent);
+            font-size: 1.4rem;
+            margin-top: 3px;
+        }
+
+        .agile-item h4 {
+            font-size: 1.1rem;
+            color: var(--text-main);
+            margin-bottom: 5px;
+        }
+
+        .agile-item p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .agile-visual {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            height: 380px;
+        }
+
+        .agile-cycle {
+            width: 320px;
+            height: 320px;
+            border: 3px dashed var(--accent);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            animation: spin 25s linear infinite;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .agile-node {
+            position: absolute;
+            background: #ffffff;
+            border: 2px solid var(--accent);
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            white-space: nowrap;
+            color: var(--accent);
+            animation: counter-spin 25s linear infinite;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.1);
+        }
+
+        @keyframes counter-spin { 100% { transform: rotate(-360deg); } }
+
+        .node-1 { top: -20px; }
+        .node-2 { right: -70px; top: 110px; }
+        .node-3 { right: -10px; bottom: -10px; }
+        .node-4 { left: -10px; bottom: -10px; }
+        .node-5 { left: -70px; top: 110px; }
+
+        .cycle-center {
+            text-align: center;
+            z-index: 5;
+        }
+
+        .cycle-center i {
+            font-size: 3.5rem;
+            color: var(--accent);
+            margin-bottom: 10px;
+            filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.2));
+        }
+
+        /* Controls */
+        .controls {
+            margin-top: 40px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 18px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4);
+        }
+
+        .btn-download:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(79, 70, 229, 0.5);
+        }
+
+        .brand-footer {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid var(--border-color);
+            padding-top: 30px;
+        }
+
+        .brand-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="capture-area" id="project-workflow-canvas">
+        <div class="header">
+            <h1>DEVELOPMENT WORKFLOW</h1>
+            <p>Full Lifecycle & Agile Methodology for CMS & Gokudiyugam</p>
+        </div>
+
+        <div class="section-title">
+            <i class="fas fa-layer-group"></i>
+            Project Phase Timeline
+        </div>
+
+        <div class="workflow-timeline">
+            <div class="wf-step">
+                <div class="wf-icon"><i class="fas fa-search-plus"></i></div>
+                <h3>Analysis</h3>
+                <p>Requirement Gathering & Logic Building</p>
+            </div>
+            <div class="wf-step">
+                <div class="wf-icon"><i class="fas fa-bezier-curve"></i></div>
+                <h3>UI Design</h3>
+                <p>Clean Interface with Poppins Font</p>
+            </div>
+            <div class="wf-step">
+                <div class="wf-icon"><i class="fab fa-git-alt"></i></div>
+                <h3>Git Master</h3>
+                <p>Version Control & Branching</p>
+            </div>
+            <div class="wf-step">
+                <div class="wf-icon"><i class="fas fa-laptop-code"></i></div>
+                <h3>Flutter Dev</h3>
+                <p>Frontend & Logic Integration</p>
+            </div>
+            <div class="wf-step">
+                <div class="wf-icon"><i class="fas fa-fire"></i></div>
+                <h3>Firebase</h3>
+                <p>Real-time DB & Auth Setup</p>
+            </div>
+            <div class="wf-step">
+                <div class="wf-icon"><i class="fas fa-vial"></i></div>
+                <h3>QA & Test</h3>
+                <p>Bug Fixing & Performance Tweak</p>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <i class="fas fa-sync-alt"></i>
+            Agile Scrum Process
+        </div>
+
+        <div class="agile-container">
+            <div class="agile-details">
+                <ul class="agile-list">
+                    <li class="agile-item">
+                        <i class="fas fa-rocket"></i>
+                        <div>
+                            <h4>Sprints</h4>
+                            <p>Dividing the projects (CMS & Gokudiyugam) into small, manageable weekly tasks.</p>
+                        </div>
+                    </li>
+                    <li class="agile-item">
+                        <i class="fas fa-users-cog"></i>
+                        <div>
+                            <h4>Daily Collaboration</h4>
+                            <p>Continuous internal updates and feature refinements based on logic flow.</p>
+                        </div>
+                    </li>
+                    <li class="agile-item">
+                        <i class="fas fa-chart-line"></i>
+                        <div>
+                            <h4>Feedback Loop</h4>
+                            <p>Mentorship reviews to ensure code quality and UI consistency.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="agile-visual">
+                <div class="agile-cycle">
+                    <div class="agile-node node-1">Backlog</div>
+                    <div class="agile-node node-2">Sprint Plan</div>
+                    <div class="agile-node node-3">Daily Standup</div>
+                    <div class="agile-node node-4">Review</div>
+                    <div class="agile-node node-5">Retrospective</div>
+                    <div class="cycle-center">
+                        <i class="fas fa-infinity"></i>
+                        <div style="font-weight: 800; color: var(--accent);">AGILE</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="brand-footer">
+            <div class="brand-item">
+                <i class="fas fa-university"></i> College Connect (CMS)
+            </div>
+            <div class="brand-item">
+                <i class="fas fa-om"></i> Gokudiyugam
+            </div>
+            <div class="brand-item" style="color: var(--secondary);">
+                <i class="fas fa-code"></i> Flutter & Firebase
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-download" onclick="exportAsImage()">
+            <i class="fas fa-file-image"></i> Download Workflow (JPG)
+        </button>
+    </div>
+
+    <script>
+        function exportAsImage() {
+            const area = document.getElementById('project-workflow-canvas');
+
+            html2canvas(area, {
+                backgroundColor: '#ffffff',
+                scale: 2, // High resolution
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'CMS_Gokudiyugam_Workflow.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>

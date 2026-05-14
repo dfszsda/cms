@@ -18,7 +18,6 @@ class StudentElectiveSelectionScreen extends StatefulWidget {
 class _StudentElectiveSelectionScreenState extends State<StudentElectiveSelectionScreen> {
   final _auth = AuthService();
   final Map<String, String?> _selectedElectives = {}; // type -> subjectId
-  bool _isLoading = false;
   StudentSelectionModel? _existingSelection;
   bool _isAlreadySubmitted = false;
 

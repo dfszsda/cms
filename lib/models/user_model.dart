@@ -22,6 +22,7 @@ class UserModel {
   String? batch; 
   String? branch; 
   String? collegeId; // NEW: Multi-college isolation
+  String? enrollmentNo; // NEW: Automated Enrollment Number
   
   // Getter to get only the branch name (removes the ID prefix if present)
   String get branchName {
@@ -58,6 +59,7 @@ class UserModel {
     this.batch,
     this.branch,
     this.collegeId,
+    this.enrollmentNo,
     this.isUfmBanned = false,
     this.ufmBanUntil,
   });
@@ -85,6 +87,7 @@ class UserModel {
       batch: data['batch'],
       branch: data['branch'],
       collegeId: data['collegeId'],
+      enrollmentNo: data['enrollmentNo'],
       isUfmBanned: data['isUfmBanned'] ?? false,
       ufmBanUntil: data['ufmBanUntil'] != null ? (data['ufmBanUntil'] as Timestamp).toDate() : null,
     );
@@ -112,6 +115,7 @@ class UserModel {
       'batch': batch,
       'branch': branch,
       'collegeId': collegeId,
+      'enrollmentNo': enrollmentNo,
       'isUfmBanned': isUfmBanned,
       'ufmBanUntil': ufmBanUntil != null ? Timestamp.fromDate(ufmBanUntil!) : null,
     };

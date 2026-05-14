@@ -47,16 +47,16 @@ class _HolidayScreenState extends State<HolidayScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      if (context.mounted) {
-        _titleController.clear();
-        _reasonController.clear();
-        Navigator.pop(context);
-        AppErrorHandler.showSuccess(context, "Holiday added successfully!");
-      }
+      if (!mounted) return;
+      _titleController.clear();
+      _reasonController.clear();
+      Navigator.pop(context);
+      AppErrorHandler.showSuccess(context, "Holiday added successfully!");
     } catch (e) {
-      if (context.mounted) AppErrorHandler.showError(context, e);
+      if (!mounted) return;
+      AppErrorHandler.showError(context, e);
     } finally {
-      if (context.mounted) LoadingOverlay.hide(context);
+      if (mounted) LoadingOverlay.hide(context);
     }
   }
 
@@ -109,7 +109,7 @@ class _HolidayScreenState extends State<HolidayScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext _) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("College Holidays"),
@@ -118,7 +118,7 @@ class _HolidayScreenState extends State<HolidayScreen> {
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('holidays').orderBy('date').snapshots(),
-        builder: (context, snapshot) {
+        builder: (_, snapshot) {
           if (snapshot.hasError) return AppErrorHandler.buildErrorWidget(snapshot.error, () => setState(() {}));
           if (!snapshot.hasData) return AppErrorHandler.buildLoadingWidget();
           
@@ -131,7 +131,7 @@ class _HolidayScreenState extends State<HolidayScreen> {
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: holidays.length,
-            itemBuilder: (context, index) {
+            itemBuilder: (_, index) {
               final holiday = holidays[index];
               final DateTime date = (holiday['date'] as Timestamp).toDate();
               
@@ -159,9 +159,11 @@ class _HolidayScreenState extends State<HolidayScreen> {
                         onPressed: () async {
                           try {
                             await holiday.reference.delete();
-                            if (context.mounted) AppErrorHandler.showSuccess(context, "Holiday deleted");
+                            if (!mounted) return;
+                            AppErrorHandler.showSuccess(context, "Holiday deleted");
                           } catch (e) {
-                            if (context.mounted) AppErrorHandler.showError(context, e);
+                            if (!mounted) return;
+                            AppErrorHandler.showError(context, e);
                           }
                         },
                       )

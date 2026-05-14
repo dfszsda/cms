@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Ecosystem - CMS</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --firebase-orange: #ffca28;
+            --firebase-amber: #ffa000;
+            --text: #0f172a;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0; padding: 40px; background-color: #f1f5f9; color: var(--text);
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .container {
+            width: 1200px; background: var(--bg-color); padding: 60px; border-radius: 2rem;
+            border: 1px solid #e2e8f0; position: relative; overflow: hidden;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1);
+        }
+        .center-circle {
+            width: 250px; height: 250px; background: #fff; border-radius: 50%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%);
+            box-shadow: 0 4px 25px rgba(255, 202, 40, 0.2); z-index: 2;
+            border: 1px solid #e2e8f0;
+        }
+        .center-circle img { width: 120px; }
+        .center-circle span { color: #ffa000; font-weight: 800; font-size: 1.5rem; }
+
+        .feature-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 200px 30px;
+            margin-top: 50px; position: relative; min-height: 500px;
+        }
+        .feature-card {
+            background: #ffffff; border: 1px solid #e2e8f0;
+            padding: 20px; border-radius: 1rem; text-align: center; z-index: 1;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .feature-card i { font-size: 2rem; color: var(--firebase-orange); margin-bottom: 10px; }
+        .feature-card h3 { margin: 5px 0; font-size: 1.1rem; color: #0f172a; }
+        .feature-card p { font-size: 0.8rem; color: #64748b; }
+
+        h1 { text-align: center; margin-bottom: 80px; font-size: 2.5rem; color: #0f172a; }
+        .btn { margin-top: 40px; padding: 15px 30px; border-radius: 50px; background: var(--firebase-amber); border: none; font-weight: bold; cursor: pointer; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container" id="capture">
+        <h1>Firebase Cloud Ecosystem</h1>
+        <div class="center-circle">
+            <img src="https://www.gstatic.com/devrel-devsite/prod/v77399a9b1c74268e604f76263599e8297b791448bc3094892700e4e69b59664f/firebase/images/lockup.png" alt="Firebase">
+            <span>BACKEND</span>
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <i class="fas fa-user-lock"></i>
+                <h3>Authentication</h3>
+                <p>Google, Email, Phone Sign-in</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-database"></i>
+                <h3>Cloud Firestore</h3>
+                <p>NoSQL Real-time Database</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-folder-open"></i>
+                <h3>Storage</h3>
+                <p>User Media & Documents</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-bolt"></i>
+                <h3>Cloud Functions</h3>
+                <p>Serverless Logic & Triggers</p>
+            </div>
+            <div class="feature-card" style="margin-top: 60px;">
+                <i class="fas fa-bell"></i>
+                <h3>Messaging</h3>
+                <p>FCM Push Notifications</p>
+            </div>
+            <div class="feature-card" style="margin-top: 60px;">
+                <i class="fas fa-chart-bar"></i>
+                <h3>Analytics</h3>
+                <p>User Behavior Tracking</p>
+            </div>
+            <div class="feature-card" style="margin-top: 60px;">
+                <i class="fas fa-bug"></i>
+                <h3>Crashlytics</h3>
+                <p>Real-time Bug Reporting</p>
+            </div>
+            <div class="feature-card" style="margin-top: 60px;">
+                <i class="fas fa-globe"></i>
+                <h3>Hosting</h3>
+                <p>Fast Web Asset Delivery</p>
+            </div>
+        </div>
+    </div>
+    <button class="btn" onclick="downloadImage()">Download JPG</button>
+    <script>
+        function downloadImage() {
+            html2canvas(document.getElementById('capture'), { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'Firebase_Ecosystem.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.9);
+                link.click();
+            });
+        }
+        window.onload = function() {
+            if (new URLSearchParams(window.location.search).get('download') === 'true') {
+                setTimeout(downloadImage, 1000);
+            }
+        }
+    </script>
+</body>
+</html>

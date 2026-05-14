@@ -189,14 +189,18 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
     Widget content = CustomScrollView(
       slivers: [
         SliverAppBar(
-          expandedHeight: isDesktop ? 80.0 : 120.0,
+          expandedHeight: isDesktop ? 80.0 : 130.0,
           floating: false,
           pinned: true,
           elevation: 0,
           backgroundColor: theme.colorScheme.primary,
           flexibleSpace: FlexibleSpaceBar(
+            titlePadding: EdgeInsets.only(
+              left: isDesktop ? 20 : 16,
+              bottom: 16,
+            ),
             title: Text(isDesktop ? "Student Dashboard" : "College Connect", 
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18)),
             background: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -204,6 +208,15 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
                   end: Alignment.bottomRight,
                   colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
                 ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -20,
+                    top: -20,
+                    child: Icon(Icons.school, size: 100, color: Colors.white.withOpacity(0.1)),
+                  ),
+                ],
               ),
             ),
           ),
@@ -330,13 +343,13 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
           ),
         ),
         SliverPadding(
-          padding: EdgeInsets.symmetric(horizontal: isDesktop ? (size.width - 1200).clamp(20, double.infinity) / 2 + 20 : 20),
+          padding: EdgeInsets.symmetric(horizontal: isDesktop ? (size.width - 1200).clamp(20, double.infinity) / 2 + 20 : 16),
           sliver: SliverGrid(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isDesktop ? 4 : 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: isDesktop ? 1.1 : 1.0,
+              crossAxisCount: isDesktop ? 4 : (size.width < 360 ? 2 : 2),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: isDesktop ? 1.1 : 1.05,
             ),
             delegate: SliverChildListDelegate([
               if (_isSelectionWindowOpen)
@@ -643,17 +656,23 @@ class _StudentHomeScreenContentState extends State<_StudentHomeScreenContent> {
   Widget _buildInfoChip(ThemeData theme, IconData icon, String label, {Color? color}) {
     Color mainColor = color ?? theme.colorScheme.primary;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: mainColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: mainColor),
-          const SizedBox(width: 6),
-          Text(label, style: TextStyle(color: mainColor, fontWeight: FontWeight.bold, fontSize: 13)),
+          Icon(icon, size: 14, color: mainColor),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label, 
+              style: TextStyle(color: mainColor, fontWeight: FontWeight.bold, fontSize: 12),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
@@ -674,6 +693,7 @@ class _ModernHomeCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -683,12 +703,18 @@ class _ModernHomeCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
-              child: Icon(icon, color: color, size: 32),
+              child: Icon(icon, color: color, size: 28),
             ),
-            const SizedBox(height: 12),
-            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            const SizedBox(height: 8),
+            Text(
+              title, 
+              textAlign: TextAlign.center, 
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, height: 1.2),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),

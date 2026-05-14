@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gokudiyugam Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background: #f8fafc; color: #1e293b; overflow: hidden; }
+        .slide { width: 1280px; height: 720px; padding: 60px 80px; display: flex; flex-direction: column; }
+        .header { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; }
+        .icon-box { width: 60px; height: 60px; background: #0ea5e9; border-radius: 1rem; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; }
+        h1 { font-size: 2.5rem; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; flex: 1; }
+        .ai-card {
+            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); color: white; border-radius: 2rem; padding: 3rem;
+            display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden;
+        }
+        .ai-card i { position: absolute; right: -20px; bottom: -20px; font-size: 15rem; opacity: 0.1; }
+        .admin-card { background: white; border-radius: 2rem; padding: 3rem; border: 1px solid #e2e8f0; }
+        h3 { font-size: 1.75rem; margin-bottom: 1rem; }
+        p { font-size: 1.1rem; line-height: 1.6; }
+        .feature-list { margin-top: 1.5rem; }
+        .feature { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+        .footer-tag {
+            position: absolute;
+            bottom: 40px;
+            left: 80px;
+            right: 80px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+            padding-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="icon-box"><i class="fas fa-brain"></i></div>
+            <h1>Admin Power & Intelligence</h1>
+        </div>
+        <div class="grid">
+            <div class="ai-card">
+                <i class="fas fa-microchip"></i>
+                <h3>Gemini 1.5 Flash AI</h3>
+                <p>Leveraging state-of-the-art Generative AI for content processing and user assistance.</p>
+                <div class="feature-list">
+                    <div class="feature"><i class="fas fa-check-circle"></i> Smart content categorization</div>
+                    <div class="feature"><i class="fas fa-check-circle"></i> Automated summary generation</div>
+                    <div class="feature"><i class="fas fa-check-circle"></i> Enhanced search relevance</div>
+                </div>
+            </div>
+            <div class="admin-card">
+                <h3>Centralized Control</h3>
+                <p>Robust Admin Panel for managing the entire application ecosystem.</p>
+                <div class="feature-list" style="color: #64748b;">
+                    <div class="feature"><i class="fas fa-users-cog" style="color: #0ea5e9;"></i> User Role Management</div>
+                    <div class="feature"><i class="fas fa-cloud-upload-alt" style="color: #0ea5e9;"></i> Real-time Content Updates</div>
+                    <div class="feature"><i class="fas fa-comments" style="color: #0ea5e9;"></i> Feedback & Support Desk</div>
+                    <div class="feature"><i class="fas fa-shield-check" style="color: #0ea5e9;"></i> Biometric Security Control</div>
+                </div>
+            </div>
+        </div>
+        <div class="footer-tag">
+            <span><strong>Presented By:</strong> Gohil Harisinh Harikrushna_12302080703007</span>
+            <span><strong>Guided By:</strong> Mr. Harsh Goswami</span>
+        </div>
+    </div>
+</body>
+</html>

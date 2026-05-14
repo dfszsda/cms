@@ -1,6 +1,7 @@
 // ignore_for_file: unnecessary_import
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
@@ -32,6 +33,13 @@ Future<void> main() async {
         storageBucket: "cmsy-cb0c5.firebasestorage.app",
       ),
     );
+
+    // Fix for connectivity issues (QUIC protocol errors)
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      webExperimentalForceLongPolling: true,
+    );
+
     debugPrint("Firebase Initialized Successfully");
   } catch (e) {
     debugPrint("Firebase Initialization Error: $e");

@@ -25,7 +25,6 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
   PlatformFile? _pickedFile;
-  bool _isUploading = false;
   String _coordinatorName = "Loading...";
 
   @override
@@ -42,10 +41,15 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
           .limit(1)
           .get();
       
+      if (!mounted) return;
+
       if (batchSnap.docs.isNotEmpty) {
         String? coordinatorId = batchSnap.docs.first.data()['coordinatorId'];
         if (coordinatorId != null) {
           final userDoc = await FirebaseFirestore.instance.collection('users').doc(coordinatorId).get();
+          
+          if (!mounted) return;
+
           if (userDoc.exists) {
             setState(() => _coordinatorName = userDoc.data()?['fullName'] ?? "Not Assigned");
             return;
@@ -54,8 +58,10 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
       }
       setState(() => _coordinatorName = "Not Assigned");
     } catch (e) {
-      if (mounted) AppErrorHandler.showError(context, e);
-      setState(() => _coordinatorName = "Error loading name");
+      if (mounted) {
+        AppErrorHandler.showError(context, e);
+        setState(() => _coordinatorName = "Error loading name");
+      }
     }
   }
 
@@ -179,7 +185,7 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
       allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
     );
 
-    if (result != null) {
+    if (result != null && mounted) {
       setState(() => _pickedFile = result.files.first);
     }
   }
@@ -201,6 +207,8 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
           .limit(1)
           .get();
       
+      if (!mounted) return;
+
       if (batchSnap.docs.isNotEmpty) {
         coordinatorId = batchSnap.docs.first.data()['coordinatorId'];
       }
@@ -233,19 +241,19 @@ class _StudentLeaveScreenState extends State<StudentLeaveScreen> {
 
       await FirebaseFirestore.instance.collection('leaves').add(leave.toMap());
       
-      if (mounted) {
-        AppErrorHandler.showSuccess(context, "Leave request submitted successfully!");
-        _reasonCtrl.clear();
-        setState(() {
-          _rangeStart = null;
-          _rangeEnd = null;
-          _pickedFile = null;
-        });
-      }
+      if (!mounted) return;
+
+      AppErrorHandler.showSuccess(context, "Leave request submitted successfully!");
+      _reasonCtrl.clear();
+      setState(() {
+        _rangeStart = null;
+        _rangeEnd = null;
+        _pickedFile = null;
+      });
     } catch (e) {
       if (mounted) AppErrorHandler.showError(context, e);
     } finally {
-      LoadingOverlay.hide(context);
+      if (mounted) LoadingOverlay.hide(context);
     }
   }
 

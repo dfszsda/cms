@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gokudiyugam Darshan</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background: #fff; color: #1e293b; overflow: hidden; }
+        .slide { width: 1280px; height: 720px; padding: 60px 80px; display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; }
+        .header { grid-column: 1 / -1; display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 1rem; }
+        .icon-box { width: 60px; height: 60px; background: #eab308; border-radius: 1rem; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; }
+        h1 { font-size: 2.5rem; }
+        .feature-card { background: #fefce8; border-radius: 1.5rem; padding: 2.5rem; border: 1px solid #fef08a; }
+        .feature-card h3 { font-size: 1.5rem; color: #854d0e; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; }
+        .feature-card p { font-size: 1.15rem; color: #713f12; line-height: 1.6; }
+        .visual {
+            background: #f8fafc; border-radius: 1.5rem; border: 2px dashed #e2e8f0; display: flex; align-items: center; justify-content: center;
+            font-size: 1.25rem; color: #94a3b8; text-align: center; padding: 2rem;
+            cursor: pointer; position: relative; overflow: hidden;
+        }
+        .visual img {
+            position: absolute; width: 100%; height: 100%; object-fit: contain;
+            background: #ffffff;
+        }
+        .list { margin-top: 1rem; }
+        .item { display: flex; gap: 0.75rem; margin-bottom: 0.75rem; font-size: 1.1rem; }
+        .item i { color: #eab308; margin-top: 0.25rem; }
+        .footer-tag {
+            position: absolute;
+            bottom: 40px;
+            left: 80px;
+            right: 80px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+            padding-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="icon-box"><i class="fas fa-home"></i></div>
+            <h1>Home Experience & Daily Darshan</h1>
+        </div>
+        <div class="feature-card">
+            <h3><i class="fas fa-om"></i> Spiritual Connection</h3>
+            <p>A unified portal for devotees to stay connected with temple activities.</p>
+            <div class="list">
+                <div class="item"><i class="fas fa-check"></i> <strong>Daily Darshan:</strong> High-res images from Badalpur Mandir.</div>
+                <div class="item"><i class="fas fa-check"></i> <strong>Coil Integration:</strong> Lightning-fast image loading & caching.</div>
+                <div class="item"><i class="fas fa-check"></i> <strong>Birthday Wishes:</strong> Personal touch with automated greetings.</div>
+                <div class="item"><i class="fas fa-check"></i> <strong>Dynamic Slider:</strong> Admin-controlled home announcements.</div>
+            </div>
+        </div>
+        <div class="visual" onclick="document.getElementById('imageInput').click()">
+            <div id="placeholder-content">
+                <i class="fas fa-image fa-4x" style="margin-bottom: 1rem;"></i>
+                <p>Darshan Gallery with <br><strong>Pinch-to-Zoom</strong> & <strong>Save</strong> features</p>
+            </div>
+            <img id="display-image" style="display: none;" alt="Uploaded Image">
+            <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImage(event)">
+        </div>
+        <div class="footer-tag">
+            <span><strong>Presented By:</strong> Gohil Harisinh Harikrushna_12302080703007</span>
+            <span><strong>Guided By:</strong> Mr. Harsh Goswami</span>
+        </div>
+    </div>
+
+    <script>
+        function handleImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dataUrl = e.target.result;
+                    document.getElementById('display-image').src = dataUrl;
+                    document.getElementById('display-image').style.display = 'block';
+                    document.getElementById('placeholder-content').style.display = 'none';
+                    localStorage.setItem('slide8_image', dataUrl);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        window.onload = function() {
+            const savedImage = localStorage.getItem('slide8_image');
+            if (savedImage) {
+                document.getElementById('display-image').src = savedImage;
+                document.getElementById('display-image').style.display = 'block';
+                document.getElementById('placeholder-content').style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html>

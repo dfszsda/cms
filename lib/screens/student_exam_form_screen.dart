@@ -150,7 +150,7 @@ class _StudentExamFormScreenState extends State<StudentExamFormScreen> {
     } catch (e) {
       if (mounted) AppErrorHandler.showError(context, e);
     } finally {
-      LoadingOverlay.hide(context);
+      if (mounted) LoadingOverlay.hide(context);
     }
   }
 
@@ -181,13 +181,15 @@ class _StudentExamFormScreenState extends State<StudentExamFormScreen> {
                 await _auth.updateExamFormStatus(formId, 'Rejected', reason: _reasonCtrl.text.trim());
                 if (ctx.mounted) {
                   Navigator.pop(ctx);
+                }
+                if (mounted) {
                   _reasonCtrl.clear();
                   AppErrorHandler.showSuccess(context, "Form Rejected and Admin notified.");
                 }
               } catch (e) {
                 if (ctx.mounted) AppErrorHandler.showError(ctx, e);
               } finally {
-                LoadingOverlay.hide(ctx);
+                if (ctx.mounted) LoadingOverlay.hide(ctx);
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),

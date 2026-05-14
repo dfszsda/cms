@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Role-Based Navigation Flow - CMS</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --card-bg: #f8fafc;
+            --primary: #6366f1;
+            --secondary: #64748b;
+            --student-color: #10b981;
+            --faculty-color: #f59e0b;
+            --admin-color: #ef4444;
+            --text: #0f172a;
+            --line-color: #e2e8f0;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background-color: #f1f5f9;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 1200px;
+            background: var(--bg-color);
+            padding: 60px;
+            border-radius: 2rem;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--line-color);
+            position: relative;
+        }
+        h1 {
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 50px;
+            color: #0f172a;
+        }
+        .flow-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            align-items: center;
+        }
+        .login-node {
+            background: var(--primary);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+        }
+        .roles-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+            width: 100%;
+        }
+        .role-column {
+            background: var(--card-bg);
+            border-radius: 1.5rem;
+            padding: 25px;
+            border: 1px solid var(--line-color);
+            border-top: 5px solid transparent;
+        }
+        .role-column.student { border-top-color: var(--student-color); }
+        .role-column.faculty { border-top-color: var(--faculty-color); }
+        .role-column.admin { border-top-color: var(--admin-color); }
+
+        .role-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #0f172a;
+        }
+        .student i { color: var(--student-color); }
+        .faculty i { color: var(--faculty-color); }
+        .admin i { color: var(--admin-color); }
+
+        .nav-item {
+            background: #ffffff;
+            margin: 10px 0;
+            padding: 12px 15px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            border: 1px solid var(--line-color);
+            color: var(--secondary);
+        }
+
+        .controls { margin-top: 40px; }
+        .btn { padding: 15px 30px; border: none; border-radius: 50px; font-weight: 700; cursor: pointer; background: var(--primary); color: white; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    <div class="container" id="capture">
+        <h1>Role-Based Navigation Flow</h1>
+        <div class="flow-container">
+            <div class="login-node"><i class="fas fa-lock"></i> Authentication Layer</div>
+            <i class="fas fa-arrow-down" style="color: var(--line-color); font-size: 1.5rem;"></i>
+            <div class="roles-grid">
+                <div class="role-column student">
+                    <div class="role-header"><i class="fas fa-user-graduate"></i> Student Dashboard</div>
+                    <div class="nav-item"><i class="fas fa-calendar-check"></i> Attendance Tracking</div>
+                    <div class="nav-item"><i class="fas fa-file-alt"></i> View Assignments</div>
+                    <div class="nav-item"><i class="fas fa-utensils"></i> Canteen Ordering</div>
+                    <div class="nav-item"><i class="fas fa-poll"></i> Exam Results</div>
+                </div>
+                <div class="role-column faculty">
+                    <div class="role-header"><i class="fas fa-user-tie"></i> Faculty Dashboard</div>
+                    <div class="nav-item"><i class="fas fa-user-check"></i> Mark Attendance</div>
+                    <div class="nav-item"><i class="fas fa-upload"></i> Post Assignments</div>
+                    <div class="nav-item"><i class="fas fa-edit"></i> Result Entry</div>
+                    <div class="nav-item"><i class="fas fa-bell"></i> Send Notifications</div>
+                </div>
+                <div class="role-column admin">
+                    <div class="role-header"><i class="fas fa-user-shield"></i> Admin Panel</div>
+                    <div class="nav-item"><i class="fas fa-users-cog"></i> User Management</div>
+                    <div class="nav-item"><i class="fas fa-table"></i> Timetable Manager</div>
+                    <div class="nav-item"><i class="fas fa-hamburger"></i> Inventory Control</div>
+                    <div class="nav-item"><i class="fas fa-chart-line"></i> Analytics & Reports</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="controls">
+        <button class="btn" onclick="downloadImage()">Download JPG</button>
+    </div>
+    <script>
+        function downloadImage() {
+            html2canvas(document.getElementById('capture'), { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'Navigation_Flow.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.9);
+                link.click();
+            });
+        }
+        window.onload = function() {
+            if (new URLSearchParams(window.location.search).get('download') === 'true') {
+                setTimeout(downloadImage, 1000);
+            }
+        }
+    </script>
+</body>
+</html>

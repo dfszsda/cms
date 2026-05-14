@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CMS Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background: #f8fafc; color: #1e293b; overflow: hidden; }
+        .slide { width: 1280px; height: 720px; padding: 60px 80px; }
+        h1 { font-size: 2.5rem; margin-bottom: 2rem; color: #4f46e5; border-bottom: 3px solid #eef2ff; padding-bottom: 1rem; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        .card {
+            background: white; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0; display: flex; align-items: flex-start; gap: 1rem;
+        }
+        .icon { font-size: 1.5rem; color: #4f46e5; margin-top: 0.25rem; }
+        .card h3 { font-size: 1.25rem; color: #0f172a; margin-bottom: 0.5rem; }
+        .card p { font-size: 1rem; color: #64748b; line-height: 1.5; }
+        .badge { background: #fee2e2; color: #ef4444; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; margin-left: 0.5rem; }
+        .footer-tag {
+            position: absolute;
+            bottom: 40px;
+            left: 80px;
+            right: 80px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+            padding-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <h1>Admin Control Center</h1>
+        <div class="grid">
+            <div class="card">
+                <i class="fas fa-university icon"></i>
+                <div>
+                    <h3>College Setup</h3>
+                    <p>Configure branches, semesters, and institutional metadata effortlessly.</p>
+                </div>
+            </div>
+            <div class="card">
+                <i class="fas fa-poll-h icon"></i>
+                <div>
+                    <h3>Result Management</h3>
+                    <p>Upload and distribute exam results to thousands of students instantly.</p>
+                </div>
+            </div>
+            <div class="card">
+                <i class="fas fa-book icon"></i>
+                <div>
+                    <h3>Library System</h3>
+                    <p>Digital tracking of book stock, issue history, and return deadlines.</p>
+                </div>
+            </div>
+            <div class="card">
+                <i class="fas fa-user-slash icon"></i>
+                <div>
+                    <h3>UFM Dashboard <span class="badge">SECURITY</span></h3>
+                    <p>Monitor exam discipline and manage suspensions for unfair means cases.</p>
+                </div>
+            </div>
+            <div class="card">
+                <i class="fas fa-calendar-alt icon"></i>
+                <div>
+                    <h3>Semester Control</h3>
+                    <p>Manage academic calendars and semester-wise course distributions.</p>
+                </div>
+            </div>
+            <div class="card">
+                <i class="fas fa-users-cog icon"></i>
+                <div>
+                    <h3>User Management</h3>
+                    <p>Full control over user permissions and role assignments.</p>
+                </div>
+            </div>
+        </div>
+        <div class="footer-tag">
+            <span><strong>Presented By:</strong> Gohil Harisinh Harikrushna_12302080703007</span>
+            <span><strong>Guided By:</strong> Mr. Harsh Goswami</span>
+        </div>
+    </div>
+</body>
+</html>

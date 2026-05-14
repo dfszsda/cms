@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Git Essentials</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background: #0f172a; color: white; overflow: hidden; }
+        .slide { width: 1280px; height: 720px; padding: 60px 80px; display: flex; flex-direction: column; }
+        .header { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2.5rem; }
+        .icon-box {
+            width: 70px; height: 70px; background: #f05032; border-radius: 1rem;
+            display: flex; align-items: center; justify-content: center; color: white; font-size: 2.5rem;
+        }
+        h1 { font-size: 3rem; font-weight: 700; color: #f8fafc; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        .cmd-box {
+            background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 1rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;
+        }
+        code {
+            font-family: 'Fira Code', monospace; font-size: 1.25rem; color: #38bdf8;
+            background: #000; padding: 0.5rem 1rem; border-radius: 0.5rem; display: inline-block;
+        }
+        .desc { font-size: 1.1rem; color: #94a3b8; }
+        .highlight { color: #f05032; }
+        .footer-tag {
+            position: absolute;
+            bottom: 40px;
+            left: 80px;
+            right: 80px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+            padding-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="icon-box"><i class="fab fa-git-alt"></i></div>
+            <h1>Git Core Commands</h1>
+        </div>
+        <div class="grid">
+            <div class="cmd-box">
+                <code>git init</code>
+                <p class="desc">Initialize a new local Git repository.</p>
+            </div>
+            <div class="cmd-box">
+                <code>git clone [url]</code>
+                <p class="desc">Create a copy of a remote repository.</p>
+            </div>
+            <div class="cmd-box">
+                <code>git status</code>
+                <p class="desc">Show status of changes (untracked, modified).</p>
+            </div>
+            <div class="cmd-box">
+                <code>git add .</code>
+                <p class="desc">Stage all changes for the next commit.</p>
+            </div>
+            <div class="cmd-box">
+                <code>git commit -m "msg"</code>
+                <p class="desc">Create a permanent snapshot of changes.</p>
+            </div>
+            <div class="cmd-box">
+                <code>git push origin main</code>
+                <p class="desc">Upload local changes to remote server.</p>
+            </div>
+        </div>
+        <div class="footer-tag">
+            <span><strong>Presented By:</strong> Gohil Harisinh Harikrushna_12302080703007</span>
+            <span><strong>Guided By:</strong> Mr. Harsh Goswami</span>
+        </div>
+    </div>
+</body>
+</html>

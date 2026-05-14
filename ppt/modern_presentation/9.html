@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gokudiyugam Kirtan</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background: #0f172a; color: white; overflow: hidden; }
+        .slide { width: 1280px; height: 720px; padding: 60px 80px; display: flex; flex-direction: column; }
+        .header { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 3rem; }
+        .icon-box { width: 60px; height: 60px; background: #ef4444; border-radius: 1rem; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; }
+        h1 { font-size: 2.5rem; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; flex: 1; }
+        .media-player { background: #1e293b; border-radius: 2rem; padding: 2rem; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .controls { display: flex; gap: 2rem; margin-top: 2rem; font-size: 2rem; color: #94a3b8; }
+        .play-btn { color: white; transform: scale(1.5); }
+        .search-feature { background: rgba(99, 102, 241, 0.1); border-radius: 1.5rem; padding: 2rem; border: 1px solid rgba(99, 102, 241, 0.2); }
+        .search-feature h3 { font-size: 1.5rem; color: #818cf8; margin-bottom: 1rem; }
+        .search-feature p { font-size: 1.1rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1.5rem; }
+        .code-snippet { background: #000; padding: 1rem; border-radius: 0.75rem; font-family: monospace; color: #38bdf8; }
+        .footer-tag {
+            position: absolute;
+            bottom: 40px;
+            left: 80px;
+            right: 80px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+            padding-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="icon-box"><i class="fas fa-music"></i></div>
+            <h1>Kirtan & Media Ecosystem</h1>
+        </div>
+        <div class="grid">
+            <div class="media-player">
+                <div style="width: 200px; height: 200px; background: #ef4444; border-radius: 1rem; margin-bottom: 2rem; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.3); display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-compact-disc fa-spin fa-5x"></i>
+                </div>
+                <h3>Advanced Media Player</h3>
+                <p style="color: #64748b;">Full playback controls & Playlist mgmt.</p>
+                <div class="controls">
+                    <i class="fas fa-step-backward"></i>
+                    <i class="fas fa-play-circle play-btn"></i>
+                    <i class="fas fa-step-forward"></i>
+                </div>
+            </div>
+            <div class="search-feature">
+                <h3>Smart Transliteration</h3>
+                <p>Search Gujarati lyrics using English characters. The system intelligently maps phonetics to find the correct content.</p>
+                <div class="code-snippet">
+                    Input: "Heji mara" <br>
+                    Match: "હેજી મારા વહાલા..."
+                </div>
+                <p style="margin-top: 1.5rem;">Integrated <strong>Google Docs Viewer</strong> for reading Sabha Saar (summaries) directly within the application.</p>
+            </div>
+        </div>
+        <div class="footer-tag">
+            <span><strong>Presented By:</strong> Gohil Harisinh Harikrushna_12302080703007</span>
+            <span><strong>Guided By:</strong> Mr. Harsh Goswami</span>
+        </div>
+    </div>
+</body>
+</html>

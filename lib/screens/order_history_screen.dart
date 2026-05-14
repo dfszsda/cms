@@ -48,7 +48,21 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     if (_collegeId == null) {
       return Scaffold(
         appBar: AppBar(title: const Text("Order History"), centerTitle: true),
-        body: AppErrorHandler.buildLoadingWidget(),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              const Text("Loading your profile..."),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => _loadUserData(),
+                child: const Text("Retry"),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -58,7 +72,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         centerTitle: true,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: (_userRole == 'retailer' || _userRole == 'admin')
+        stream: (_userRole == 'retailer' || _userRole == 'admin' || _userRole == 'system_admin'  || _userRole == 'teacher'  || _userRole == 'student' || _userRole == 'coordinator')
             ? canteenService.getAllOrders(collegeId: _collegeId)
             : canteenService.getMyOrders(collegeId: _collegeId),
         builder: (context, snapshot) {
@@ -105,10 +119,14 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            "Order #${order['orderId'] ?? orderDocId.substring(0, 6)}",
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          Flexible(
+                            child: Text(
+                              "Order #${order['orderId'] ?? orderDocId.substring(0, 6)}",
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           _buildStatusChip(status),
                         ],
                       ),
@@ -129,16 +147,23 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                       if (transactionId != null)
                         Text("Txn ID: $transactionId", style: const TextStyle(fontSize: 10, color: Colors.grey)),
                       const Divider(height: 24),
-                      ...items.map((item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text("${item['name']} x ${item['quantity']}"),
-                            Text("₹${(double.tryParse(item['price'].toString().replaceAll('₹', '')) ?? 0) * (item['quantity'] ?? 1)}"),
-                          ],
-                        ),
-                      )).toList(),
+                      ...items.map((item) {
+                        final String itemName = (item['name'] ?? 'Unknown Item').toString();
+                        final String priceStr = (item['price'] ?? '0').toString().replaceAll('₹', '');
+                        final double price = double.tryParse(priceStr) ?? 0.0;
+                        final int quantity = int.tryParse(item['quantity'].toString()) ?? 1;
+                        
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text("$itemName x $quantity"),
+                              Text("₹${(price * quantity).toStringAsFixed(2)}"),
+                            ],
+                          ),
+                        );
+                      }).toList(),
                       const Divider(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -152,7 +177,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                             ],
                           ),
                           Text(
-                            "Total: ₹${order['totalAmount']}",
+                            "Total: ₹${order['totalAmount'] ?? '0.00'}",
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blue),
                           ),
                         ],

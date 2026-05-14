@@ -16,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.example.cms"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -39,18 +39,28 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-            storePassword = keystoreProperties["storePassword"] as String
+            val alias = keystoreProperties.getProperty("keyAlias")
+            val password = keystoreProperties.getProperty("keyPassword")
+            val store = keystoreProperties.getProperty("storeFile")
+            val storePass = keystoreProperties.getProperty("storePassword")
+
+            if (alias != null && password != null && store != null && storePass != null) {
+                keyAlias = alias
+                keyPassword = password
+                storeFile = file(store)
+                storePassword = storePass
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            val releaseConfig = signingConfigs.getByName("release")
+            if (releaseConfig.storeFile != null) {
+                signingConfig = releaseConfig
+            }
         }
-        debug{
+        debug {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -70,9 +80,9 @@ flutter {
 tasks.register("prepareKotlinBuildScriptModel") {}
 
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:34.11.0"))
+    implementation(platform("com.google.firebase:firebase-bom:34.13.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("androidx.appcompat:appcompat:1.7.1")
-    implementation("com.google.android.material:material:1.13.0")
-    //implementation("androidx.legacy:legacy-support-v4:1.0.0")
+    implementation("com.google.android.material:material:1.14.0")
+    //implementation("androidx.Legacy:legacy-support-v4:1.0.0")
 }

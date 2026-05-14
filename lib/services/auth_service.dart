@@ -136,6 +136,9 @@ class AuthService {
       };
       if (role == 'student') {
         userData['semester'] = 1;
+        // If collegeId is provided, we might want to generate enrollment number here too
+        // but this method doesn't take branchId as argument. 
+        // Usually students sign up and then complete profile, or admin signs them up.
       }
 
       await _firestore.collection('users').doc(cred.user!.uid).set(userData);
@@ -167,12 +170,69 @@ class AuthService {
       'ufmBanUntil': null,
       'collegeId': collegeId,
     };
+
     if (role == 'student') {
       userData['semester'] = 1;
       userData['batch'] = batch;
+      
+      // Generate Enrollment Number
+      if (branch != null && collegeId != null) {
+        userData['enrollmentNo'] = await generateEnrollmentNumber(collegeId, branch);
+      }
     }
 
     await _firestore.collection('users').doc(cred.user!.uid).set(userData);
+  }
+
+  Future<String?> generateEnrollmentNumber(String collegeId, String branchId) async {
+    String configId = "${collegeId}_$branchId";
+    DocumentReference configRef = _firestore.collection('enrollment_configs').doc(configId);
+
+    return _firestore.runTransaction((transaction) async {
+      DocumentSnapshot configSnap = await transaction.get(configRef);
+      
+      String prefix = "1230";
+      String branchCode = "01";
+      String collegeCode = "01";
+      int lastSeq = 0;
+      int seqLen = 3;
+      bool includeYear = true;
+
+      if (configSnap.exists) {
+        final data = configSnap.data() as Map<String, dynamic>;
+        prefix = data['prefix'] ?? "1230";
+        branchCode = data['branchCode'] ?? "01";
+        collegeCode = data['collegeCode'] ?? "01";
+        lastSeq = data['lastSequence'] ?? 0;
+        seqLen = data['sequenceLength'] ?? 3;
+        includeYear = data['includeYear'] ?? true;
+      } else {
+        // Try to get branch code from branchId if possible
+        if (branchId.contains('_')) {
+          branchCode = branchId.split('_').last.substring(0, 2).padLeft(2, '0');
+        }
+      }
+
+      int nextSeq = lastSeq + 1;
+      String yearStr = includeYear ? DateTime.now().year.toString() : "";
+      String seqStr = nextSeq.toString().padLeft(seqLen, '0');
+      
+      String enrollmentNo = "$prefix$yearStr$branchCode$collegeCode$seqStr";
+
+      transaction.set(configRef, {
+        'prefix': prefix,
+        'branchCode': branchCode,
+        'collegeCode': collegeCode,
+        'lastSequence': nextSeq,
+        'sequenceLength': seqLen,
+        'includeYear': includeYear,
+        'collegeId': collegeId,
+        'branchId': branchId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      return enrollmentNo;
+    });
   }
 
   // Multi-college Logic

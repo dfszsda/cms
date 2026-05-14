@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMS Project Diagrams - Menu</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --primary: #6366f1;
+            --text: #0f172a;
+            --accent: #10b981;
+            --pdf-color: #ef4444;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            padding: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { margin-bottom: 40px; color: #0f172a; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            width: 100%;
+            max-width: 1300px;
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .card-link {
+            padding: 30px 20px;
+            text-decoration: none;
+            color: var(--text);
+            text-align: center;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .card i { font-size: 3rem; color: var(--primary); margin-bottom: 15px; }
+        .card h3 { font-size: 1.2rem; margin: 0; }
+
+        .download-area {
+            background: #f1f5f9;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .download-btn {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 8px 15px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            text-decoration: none;
+            font-size: 0.8rem;
+        }
+        .download-btn.pdf {
+            border-color: var(--pdf-color);
+            color: var(--pdf-color);
+        }
+        .download-btn:hover {
+            background: var(--accent);
+            color: white;
+        }
+        .download-btn.pdf:hover {
+            background: var(--pdf-color);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Project Diagrams & Workflows</h1>
+    <div class="grid">
+        <!-- Project Lifecycle -->
+        <div class="card">
+            <a href="workflow.html" class="card-link">
+                <i class="fas fa-project-diagram"></i>
+                <h3>Project Lifecycle</h3>
+            </a>
+            <div class="download-area">
+                <a href="workflow.html?download=true" class="download-btn">
+                    <i class="fas fa-image"></i> JPG
+                </a>
+                <a href="workflow.html?pdf=true" class="download-btn pdf">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+            </div>
+        </div>
+
+        <!-- System Architecture -->
+        <div class="card">
+            <a href="system_architecture.html" class="card-link">
+                <i class="fas fa-server"></i>
+                <h3>System Architecture</h3>
+            </a>
+            <div class="download-area">
+                <a href="system_architecture.html?download=true" class="download-btn">
+                    <i class="fas fa-image"></i> JPG
+                </a>
+                <a href="system_architecture.html?pdf=true" class="download-btn pdf">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+            </div>
+        </div>
+
+        <!-- Navigation Flow -->
+        <div class="card">
+            <a href="navigation_flow.html" class="card-link">
+                <i class="fas fa-route"></i>
+                <h3>Navigation Flow</h3>
+            </a>
+            <div class="download-area">
+                <a href="navigation_flow.html?download=true" class="download-btn">
+                    <i class="fas fa-image"></i> JPG
+                </a>
+                <a href="navigation_flow.html?pdf=true" class="download-btn pdf">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+            </div>
+        </div>
+
+        <!-- Firebase Ecosystem -->
+        <div class="card">
+            <a href="firebase_ecosystem.html" class="card-link">
+                <i class="fas fa-fire"></i>
+                <h3>Firebase Ecosystem</h3>
+            </a>
+            <div class="download-area">
+                <a href="firebase_ecosystem.html?download=true" class="download-btn">
+                    <i class="fas fa-image"></i> JPG
+                </a>
+                <a href="firebase_ecosystem.html?pdf=true" class="download-btn pdf">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+            </div>
+        </div>
+
+        <!-- Firestore ERD -->
+        <div class="card">
+            <a href="firestore_erd.html" class="card-link">
+                <i class="fas fa-database"></i>
+                <h3>Firestore ERD</h3>
+            </a>
+            <div class="download-area">
+                <a href="firestore_erd.html?download=true" class="download-btn">
+                    <i class="fas fa-image"></i> JPG
+                </a>
+                <a href="firestore_erd.html?pdf=true" class="download-btn pdf">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+            </div>
+        </div>
+
+        <!-- Examination Workflow -->
+        <div class="card">
+            <a href="examination_workflow.html" class="card-link">
+                <i class="fas fa-file-invoice"></i>
+                <h3>Examination Workflow</h3>
+            </a>
+            <div class="download-area">
+                <a href="examination_workflow.html?download=true" class="download-btn">
+                    <i class="fas fa-image"></i> JPG
+                </a>
+                <a href="examination_workflow.html?pdf=true" class="download-btn pdf">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+            </div>
+        </div>
+
+        <!-- Attendance Flow -->
+        <div class="card">
+            <a href="attendance_flow.html" class="card-link">
+                <i class="fas fa-user-check"></i>
+                <h3>Attendance Flow</h3>
+            </a>
+            <div class="download-area">
+                <a href="attendance_flow.html?download=true" class="download-btn">
+                    <i class="fas fa-image"></i> JPG
+                </a>
+                <a href="attendance_flow.html?pdf=true" class="download-btn pdf">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+            </div>
+        </div>
+
+        <!-- Assignment Lifecycle -->
+        <div class="card">
+            <a href="assignment_lifecycle.html" class="card-link">
+                <i class="fas fa-tasks"></i>
+                <h3>Assignment Lifecycle</h3>
+            </a>
+            <div class="download-area">
+                <a href="assignment_lifecycle.html?download=true" class="download-btn">
+                    <i class="fas fa-image"></i> JPG
+                </a>
+                <a href="assignment_lifecycle.html?pdf=true" class="download-btn pdf">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+            </div>
+        </div>
+
+        <!-- Canteen Flow -->
+        <div class="card">
+            <a href="canteen_flow.html" class="card-link">
+                <i class="fas fa-hamburger"></i>
+                <h3>Canteen Flow</h3>
+            </a>
+            <div class="download-area">
+                <a href="canteen_flow.html?download=true" class="download-btn">
+                    <i class="fas fa-image"></i> JPG
+                </a>
+                <a href="canteen_flow.html?pdf=true" class="download-btn pdf">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+            </div>
+        </div>
+
+        <!-- Fees Management -->
+        <div class="card">
+            <a href="fees_flow.html" class="card-link">
+                <i class="fas fa-hand-holding-usd"></i>
+                <h3>Fees Management</h3>
+            </a>
+            <div class="download-area">
+                <a href="fees_flow.html?download=true" class="download-btn">
+                    <i class="fas fa-image"></i> JPG
+                </a>
+                <a href="fees_flow.html?pdf=true" class="download-btn pdf">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+            </div>
+        </div>
+
+        <!-- Timetable Management -->
+        <div class="card">
+            <a href="timetable_flow.html" class="card-link">
+                <i class="fas fa-calendar-day"></i>
+                <h3>Timetable Flow</h3>
+            </a>
+            <div class="download-area">
+                <a href="timetable_flow.html?download=true" class="download-btn">
+                    <i class="fas fa-image"></i> JPG
+                </a>
+                <a href="timetable_flow.html?pdf=true" class="download-btn pdf">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <p style="margin-top: 50px; color: #64748b; font-size: 0.9rem;">
+        Tip: Select JPG for presentations or PDF for project reports.
+    </p>
+</body>
+</html>

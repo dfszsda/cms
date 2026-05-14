@@ -110,10 +110,12 @@ class RetailerHomeScreen extends StatelessWidget {
                 icon: Icons.person_rounded,
                 color: Colors.purple,
                 onTap: () async {
-                  final users = await authService.getAllUsers().first;
-                  final currentUser = users.firstWhere((u) => u.uid == authService.currentUser?.uid);
-                  if (context.mounted) {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(user: currentUser)));
+                  final user = authService.currentUser;
+                  if (user != null) {
+                    final currentUser = await authService.getUserModel(user.uid);
+                    if (context.mounted && currentUser != null) {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(user: currentUser)));
+                    }
                   }
                 },
               ),
@@ -137,16 +139,18 @@ class RetailerHomeScreen extends StatelessWidget {
                     NavigationRailDestination(icon: Icon(Icons.person_outline_rounded), label: Text('Profile')),
                   ],
                   selectedIndex: 0,
-                  onDestinationSelected: (index) async {
-                    if (index == 1) Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen()));
-                    if (index == 2) {
-                       final users = await authService.getAllUsers().first;
-                       final currentUser = users.firstWhere((u) => u.uid == authService.currentUser?.uid);
-                       if (context.mounted) {
-                         Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(user: currentUser)));
-                       }
-                    }
-                  },
+                    onDestinationSelected: (index) async {
+                      if (index == 1) Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen()));
+                      if (index == 2) {
+                        final user = authService.currentUser;
+                        if (user != null) {
+                          final currentUser = await authService.getUserModel(user.uid);
+                          if (context.mounted && currentUser != null) {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(user: currentUser)));
+                          }
+                        }
+                      }
+                    },
                 ),
                 Expanded(child: content),
               ],

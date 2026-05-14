@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canteen Flow - Swimlane</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <style>
+        :root {
+            --border: #1e293b;
+            --student: #fdf2f8;
+            --system: #f0f9ff;
+            --kitchen: #fff7ed;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; padding: 40px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 1200px; background: white; padding: 50px; border: 2px solid var(--border); }
+        h1 { text-align: center; margin-bottom: 50px; font-weight: 800; color: #1e293b; }
+
+        .swimlane { display: flex; flex-direction: column; border: 2px solid var(--border); }
+        .lane { display: flex; min-height: 180px; border-bottom: 2px solid var(--border); }
+        .lane:last-child { border-bottom: none; }
+
+        .lane-header {
+            width: 70px; background: #475569; color: white; border-right: 2px solid var(--border);
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+            writing-mode: vertical-lr; transform: rotate(180deg);
+        }
+
+        .lane-content { flex-grow: 1; padding: 25px; display: flex; align-items: center; gap: 30px; position: relative; }
+
+        .node {
+            padding: 12px 18px; border: 2px solid var(--border); min-width: 120px; text-align: center;
+            font-weight: 600; font-size: 0.85rem; position: relative;
+            box-shadow: 3px 3px 0px rgba(0,0,0,0.1);
+        }
+        .oval { border-radius: 50px; }
+        .rect { border-radius: 4px; }
+
+        .s-node { background: var(--student); }
+        .sys-node { background: var(--system); }
+        .k-node { background: var(--kitchen); }
+
+        .arrow-h { width: 30px; height: 2px; background: var(--border); position: relative; }
+        .arrow-h::after {
+            content: ''; position: absolute; right: -2px; top: -5px;
+            border-left: 8px solid var(--border); border-top: 6px solid transparent; border-bottom: 6px solid transparent;
+        }
+
+        .arrow-v { position: absolute; width: 2px; height: 75px; background: var(--border); left: 50%; transform: translateX(-50%); z-index: 5; }
+        .arrow-v.down { bottom: -75px; }
+        .arrow-v.down::after {
+            content: ''; position: absolute; bottom: -2px; left: -5px;
+            border-top: 8px solid var(--border); border-left: 6px solid transparent; border-right: 6px solid transparent;
+        }
+
+        .btn { margin-top: 30px; padding: 12px 25px; background: #1e293b; color: white; border: none; cursor: pointer; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container" id="capture">
+        <h1>Canteen Order & Fulfillment Flow</h1>
+        <div class="swimlane">
+            <div class="lane">
+                <div class="lane-header">Student</div>
+                <div class="lane-content">
+                    <div class="node oval s-node">Browse Menu</div>
+                    <div class="arrow-h"></div>
+                    <div class="node rect s-node">
+                        Place Order
+                        <div class="arrow-v down"></div>
+                    </div>
+                    <div style="width: 320px;"></div>
+                    <div class="node rect s-node">
+                        Receive Alert
+                    </div>
+                    <div class="arrow-h"></div>
+                    <div class="node oval s-node">Collect Food</div>
+                </div>
+            </div>
+            <div class="lane">
+                <div class="lane-header">System</div>
+                <div class="lane-content">
+                    <div style="width: 185px;"></div>
+                    <div class="node rect sys-node">
+                        Process Payment
+                        <div class="arrow-v down"></div>
+                    </div>
+                    <div class="arrow-h"></div>
+                    <div class="node rect sys-node">
+                        Send Token to Kitchen
+                    </div>
+                    <div class="arrow-h"></div>
+                    <div class="node rect sys-node" style="z-index: 10;">
+                        Ready Status Sync
+                        <div class="arrow-v" style="height: 75px; top: -75px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="lane">
+                <div class="lane-header">Kitchen</div>
+                <div class="lane-content">
+                    <div style="width: 185px;"></div>
+                    <div class="node rect k-node">
+                        Food Preparation
+                        <div class="arrow-v down" style="height: 40px; bottom: 80px; transform: rotate(180deg);"></div>
+                    </div>
+                    <div class="arrow-h"></div>
+                    <div class="node rect k-node" style="z-index:10;">
+                        Mark as Ready
+                        <div class="arrow-v" style="height: 75px; top: -75px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <button class="btn" onclick="downloadImage()">Download Flowchart</button>
+    <script>
+        function downloadImage() {
+            html2canvas(document.getElementById('capture'), { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'Canteen_Swimlane_Flow.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.9);
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>

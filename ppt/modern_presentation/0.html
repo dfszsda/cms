@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title Slide</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background: #0f172a; color: white; overflow: hidden; }
+        .slide {
+            width: 1280px; height: 720px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative;
+        }
+        .accent {
+            position: absolute; width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+            top: -100px; right: -100px; border-radius: 50%;
+        }
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 2.5rem 3.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 20;
+        }
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 20px;
+            border-radius: 24px;
+            backdrop-filter: blur(12px);
+            border: 1.5px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+        }
+        .logo-container:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transform: translateY(-5px);
+            border-color: #6366f1;
+        }
+        .logo-img {
+            height: 120px;
+            width: auto;
+            max-width: 300px;
+            object-fit: contain;
+        }
+        .content { z-index: 10; text-align: center; max-width: 1000px; margin-top: 8rem; }
+        .label {
+            font-size: 1.25rem; font-weight: 600; color: #818cf8;
+            letter-spacing: 0.5rem; text-transform: uppercase; margin-bottom: 1.5rem;
+        }
+        h1 { font-size: 4.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 1rem; }
+        h2 { font-size: 2rem; font-weight: 400; color: #94a3b8; margin-bottom: 4rem; }
+        .footer {
+            display: flex; justify-content: space-around; width: 100%;
+            margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .info-item { text-align: left; }
+        .info-label { font-size: 0.875rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .info-value { font-size: 1.25rem; font-weight: 600; color: #e2e8f0; }
+        .primary-color { color: #6366f1; }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="header">
+            <div class="logo-container" onclick="document.getElementById('college-input').click()">
+                <!-- Replace with College Logo -->
+                <img id="college-logo" src="../../lib/raw/logo.png" alt="College Logo" class="logo-img">
+                <input type="file" id="college-input" accept="image/*" style="display: none;" onchange="updateLogo(event, 'college-logo')">
+            </div>
+            <div class="logo-container" onclick="document.getElementById('univ-input').click()">
+                <!-- Replace with University Logo -->
+                <img id="university-logo" src="../../lib/raw/logo.png" alt="University Logo" class="logo-img">
+                <input type="file" id="univ-input" accept="image/*" style="display: none;" onchange="updateLogo(event, 'university-logo')">
+            </div>
+        </div>
+        <div class="accent"></div>
+        <div class="content">
+            <p class="label">Internship Presentation</p>
+            <h1>Mobile App Development <br><span class="primary-color">CMS & Gokudiyugam</span></h1>
+            <h2>Harnessing Flutter, Firebase & AI for Modern Solutions</h2>
+
+            <div class="footer">
+                <div class="info-item">
+                    <p class="info-label">Presented By</p>
+                    <p class="info-value">Gohil Harisinh Harikrushna_12302080703007</p>
+                </div>
+                <div class="info-item">
+                    <p class="info-label">Guided By</p>
+                    <p class="info-value">Mr. Harsh Goswami</p>
+                </div>
+                <div class="info-item">
+                    <p class="info-label">Institution</p>
+                    <p class="info-value">CVM University (MBIT)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function updateLogo(event, elementId) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dataUrl = e.target.result;
+                    document.getElementById(elementId).src = dataUrl;
+                    localStorage.setItem(elementId, dataUrl);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        window.onload = function() {
+            ['college-logo', 'university-logo'].forEach(id => {
+                const savedLogo = localStorage.getItem(id);
+                if (savedLogo) {
+                    document.getElementById(id).src = savedLogo;
+                }
+            });
+        };
+    </script>
+</body>
+</html>

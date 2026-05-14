@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Flow - A4 Flowchart</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <style>
+        :root {
+            --border: #2c3e50;
+            --faculty: #e8f4fd;
+            --system: #f0fdf4;
+            --parent: #fff7ed;
+        }
+        body {
+            background-color: #f3f4f6;
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        /* A4 Portrait Format */
+        .page {
+            width: 210mm;
+            height: 297mm;
+            background: white;
+            padding: 15mm;
+            box-sizing: border-box;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #d1d5db;
+        }
+        h1 {
+            text-align: center;
+            font-size: 24pt;
+            margin-bottom: 30pt;
+            color: #1a202c;
+            border-bottom: 2pt solid var(--border);
+            padding-bottom: 10pt;
+        }
+
+        .swimlane-container {
+            display: flex;
+            flex-direction: column;
+            border: 1.5pt solid var(--border);
+            flex-grow: 1;
+        }
+
+        .lane {
+            display: flex;
+            border-bottom: 1.5pt solid var(--border);
+            min-height: 25%;
+        }
+        .lane:last-child { border-bottom: none; }
+
+        .lane-header {
+            width: 40pt;
+            background: #e2e8f0;
+            border-right: 1.5pt solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            text-transform: uppercase;
+            writing-mode: vertical-lr;
+            transform: rotate(180deg);
+            font-size: 12pt;
+        }
+
+        .lane-content {
+            flex-grow: 1;
+            position: relative;
+            padding: 20pt;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: center;
+            gap: 20pt;
+        }
+
+        .node {
+            padding: 10pt 15pt;
+            border: 1.5pt solid var(--border);
+            font-weight: 600;
+            text-align: center;
+            font-size: 10pt;
+            background: white;
+            box-shadow: 3pt 3pt 0px rgba(0,0,0,0.05);
+            min-width: 100pt;
+        }
+        .oval { border-radius: 25pt; }
+        .rect { border-radius: 2pt; }
+        .diamond {
+            width: 60pt; height: 60pt;
+            display: flex; align-items: center; justify-content: center;
+            transform: rotate(45deg);
+            border: 1.5pt solid var(--border);
+            margin: 10pt;
+        }
+        .diamond span { transform: rotate(-45deg); font-size: 8pt; }
+
+        .faculty { background: var(--faculty); }
+        .system { background: var(--system); }
+        .parent { background: var(--parent); }
+
+        .arrow-h {
+            width: 20pt;
+            height: 1.5pt;
+            background: var(--border);
+            align-self: center;
+            position: relative;
+        }
+        .arrow-h::after {
+            content: '';
+            position: absolute;
+            right: -2pt; top: -4pt;
+            border-left: 6pt solid var(--border);
+            border-top: 4pt solid transparent;
+            border-bottom: 4pt solid transparent;
+        }
+
+        .footer {
+            margin-top: auto;
+            font-size: 9pt;
+            color: #718096;
+            text-align: right;
+            border-top: 1pt solid #e2e8f0;
+            padding-top: 5pt;
+        }
+
+        .btn { margin-top: 20px; padding: 10px 20px; background: #2d3748; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="page" id="capture">
+        <h1>Attendance System Workflow</h1>
+
+        <div class="swimlane-container">
+            <div class="lane" style="height: 30%;">
+                <div class="lane-header">Faculty</div>
+                <div class="lane-content">
+                    <div class="node oval faculty">Start: App Login</div>
+                    <div class="arrow-h"></div>
+                    <div class="node rect faculty">Select Subject/Class</div>
+                    <div class="arrow-h"></div>
+                    <div class="node rect faculty">Mark Student Status</div>
+                    <div class="arrow-h"></div>
+                    <div class="node rect faculty">Submit Attendance</div>
+                </div>
+            </div>
+
+            <div class="lane" style="height: 40%;">
+                <div class="lane-header">System</div>
+                <div class="lane-content">
+                    <div style="width: 100pt; height: 1px;"></div> <!-- Spacer -->
+                    <div class="node rect system">Validate Request</div>
+                    <div class="arrow-h"></div>
+                    <div class="node rect system">Update Firestore DB</div>
+                    <div class="arrow-h"></div>
+                    <div class="diamond system"><span>All Data Sent?</span></div>
+                    <div class="arrow-h"></div>
+                    <div class="node rect system">Trigger Notifications</div>
+                </div>
+            </div>
+
+            <div class="lane" style="height: 30%;">
+                <div class="lane-header">Parents</div>
+                <div class="lane-content">
+                    <div style="width: 350pt; height: 1px;"></div> <!-- Spacer -->
+                    <div class="node oval parent">Receive App Alert</div>
+                    <div class="arrow-h"></div>
+                    <div class="node rect parent">View Child's Report</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            CMS Project - Attendance Module | Page 1
+        </div>
+    </div>
+
+    <button class="btn" onclick="downloadImage()">Download A4 Page (JPG)</button>
+
+    <script>
+        function downloadImage() {
+            html2canvas(document.getElementById('capture'), {
+                scale: 3, // Very high quality for printing
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'Attendance_A4_Flowchart.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 1.0);
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>

@@ -161,14 +161,18 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     Widget content = CustomScrollView(
       slivers: [
         SliverAppBar(
-          expandedHeight: isDesktop ? 80.0 : 120.0,
+          expandedHeight: isDesktop ? 80.0 : 130.0,
           floating: false,
           pinned: true,
           elevation: 0,
           backgroundColor: theme.colorScheme.primary,
           flexibleSpace: FlexibleSpaceBar(
+            titlePadding: EdgeInsets.only(
+              left: isDesktop ? 20 : 16,
+              bottom: 16,
+            ),
             title: Text(isDesktop ? "Teacher Portal" : "Teacher Portal", 
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18)),
             background: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -176,6 +180,15 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                   end: Alignment.bottomRight,
                   colors: [const Color(0xFF1E3A8A), theme.colorScheme.primary],
                 ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -20,
+                    top: -20,
+                    child: Icon(Icons.school, size: 100, color: Colors.white.withOpacity(0.1)),
+                  ),
+                ],
               ),
             ),
           ),
@@ -258,13 +271,13 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
           ),
         ),
         SliverPadding(
-          padding: EdgeInsets.symmetric(horizontal: isDesktop ? (size.width - 1200).clamp(20, double.infinity) / 2 + 20 : 20),
+          padding: EdgeInsets.symmetric(horizontal: isDesktop ? (size.width - 1200).clamp(20, double.infinity) / 2 + 20 : 16),
           sliver: SliverGrid(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: isDesktop ? 4 : 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: isDesktop ? 1.1 : 1.0,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: isDesktop ? 1.1 : 1.05,
             ),
             delegate: SliverChildListDelegate([
               if (_isCoordinator)
@@ -391,6 +404,7 @@ class _ModernTeacherCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -400,12 +414,18 @@ class _ModernTeacherCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
-              child: Icon(icon, color: color, size: 32),
+              child: Icon(icon, color: color, size: 28),
             ),
-            const SizedBox(height: 12),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Text(
+              title, 
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, height: 1.2), 
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),

@@ -42,7 +42,7 @@ class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
         }
       }
     } catch (e) {
-      if (mounted) AppErrorHandler.showError(context, e);
+      if (context.mounted) AppErrorHandler.showError(context, e);
     }
   }
 
@@ -174,7 +174,7 @@ class _GroupProjectsScreenState extends State<GroupProjectsScreen> {
                       AppErrorHandler.showError(context, e);
                     }
                   } finally {
-                    LoadingOverlay.hide(context);
+                    if (context.mounted) LoadingOverlay.hide(context);
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -295,7 +295,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (date != null) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
       if (time != null) {
         setState(() {
@@ -326,7 +326,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
 
       await FirebaseFirestore.instance.collection('group_tasks').add(task.toMap());
       
-      if (mounted) {
+      if (context.mounted) {
         _taskTitleCtrl.clear();
         _taskDescCtrl.clear();
         setState(() {
@@ -342,7 +342,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         AppErrorHandler.showError(context, e);
       }
     } finally {
-      LoadingOverlay.hide(context);
+      if (context.mounted) LoadingOverlay.hide(context);
     }
   }
 
@@ -455,6 +455,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               );
               
               if (confirm == true) {
+                if (!context.mounted) return;
                 LoadingOverlay.show(context);
                 try {
                   await FirebaseFirestore.instance.collection('projects').doc(widget.project.id).delete();
@@ -470,7 +471,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 } catch (e) {
                   if (context.mounted) AppErrorHandler.showError(context, e);
                 } finally {
-                  LoadingOverlay.hide(context);
+                  if (context.mounted) LoadingOverlay.hide(context);
                 }
               }
             },

@@ -1,0 +1,254 @@
+REPORT FORMATTING INSTRUCTIONS (Apply these in MS Word):
+- Paper: A4
+- Margins: Left: 1.25", Right: 1.0", Top: 1.0", Bottom: 1.0"
+- Font: Times New Roman
+- Chapter Headings: 16pt, Bold, All Caps
+- Section Headings: 14pt, Bold, All Caps
+- Subsection Headings: 12pt, Bold, Leading Capitals
+- Regular Text: 12pt, 1.5 Line Spacing
+- Header (Top-Left): <ENROLLMENT_NUMBER>
+- Header (Top-Right): <CHAPTER_NAME>
+- Footer (Bottom-Left): CVM University
+- Footer (Bottom-Center): <PAGE_NUMBER>
+- Footer (Bottom-Right): <COLLEGE_NAME>
+
+================================================================================
+1. COVER PAGE
+================================================================================
+
+                                PROJECT REPORT
+                                      ON
+                        COLLEGE CONNECT (CMS) & GOKUDIYUGAM
+                                  APPLICATIONS
+
+                                  SUBMITTED BY:
+                               <YOUR_NAME_HERE>
+                        Enrollment No: <ENROLLMENT_NUMBER>
+
+                                 GUIDED BY:
+                               <GUIDE_NAME_HERE>
+
+                      <COLLEGE_LOGO_HERE (CVM UNIVERSITY)>
+
+                           DEPARTMENT OF COMPUTER SCIENCE
+                                <COLLEGE_NAME>
+                                CVM UNIVERSITY
+                                  MAY 2024
+
+================================================================================
+2. FIRST PAGE (Same as Cover Page)
+================================================================================
+
+================================================================================
+3. COLLEGE CERTIFICATE
+================================================================================
+This is to certify that the project work entitled "COLLEGE CONNECT (CMS) & GOKUDIYUGAM APPLICATIONS" has been successfully carried out by <YOUR_NAME_HERE> (Enrollment No: <ENROLLMENT_NUMBER>) in partial fulfillment for the award of <DEGREE_NAME> from CVM University during the academic year 2023-2024.
+
+Date: _________
+Place: ________
+
+Internal Guide                                      Head of Department
+(Signature)                                         (Signature & Stamp)
+
+================================================================================
+4. COMPANY CERTIFICATE (If applicable, else keep as placeholder)
+================================================================================
+
+================================================================================
+5. CANDIDATE'S DECLARATION
+================================================================================
+I hereby declare that the project work entitled "COLLEGE CONNECT (CMS) & GOKUDIYUGAM APPLICATIONS" is an authentic record of my own work carried out under the guidance of <GUIDE_NAME_HERE>. This work has not been submitted earlier for any degree or diploma to any other university or institute.
+
+Name: <YOUR_NAME_HERE>
+Enrollment No: <ENROLLMENT_NUMBER>
+Signature: _____________
+
+================================================================================
+6. ACKNOWLEDGEMENT
+================================================================================
+I would like to express my sincere gratitude to my project guide <GUIDE_NAME_HERE> for their constant support and valuable suggestions. I am also thankful to the Head of the Department and the faculty members of <COLLEGE_NAME> for providing the necessary facilities and a conducive environment for project work.
+
+Finally, I would like to thank my family and friends for their encouragement and support throughout this journey.
+
+================================================================================
+7. ABSTRACT
+================================================================================
+This report details the development of two distinct Flutter-based applications: "College Connect (CMS)" and "Gokudiyugam".
+
+College Connect (CMS) is a comprehensive College Management System designed to digitize academic and administrative workflows. It features role-based access for Admins, Students, Teachers, and Retailers, facilitating tasks such as attendance tracking, examination management, and canteen ordering.
+
+Gokudiyugam is a spiritual and administrative platform developed for BAPS Badalpur Mandal. It integrates modern technologies like Firebase and Google Gemini AI to provide features such as daily darshan, smart kirtan search with transliteration, and centralized content management. Both applications leverage Flutter for cross-platform availability and Firebase for real-time data synchronization.
+
+================================================================================
+8. LIST OF FIGURES
+================================================================================
+1.1 System Architecture of CMS ................................... 15
+2.1 Login Screen Flow ........................................... 18
+3.1 Student Dashboard Layout .................................... 22
+... (Add your screenshot references here)
+
+================================================================================
+9. LIST OF TABLES
+================================================================================
+1.1 Software Requirements ........................................ 12
+1.2 Hardware Requirements ........................................ 13
+2.1 Firestore Database Collections ............................... 35
+
+================================================================================
+10. LIST OF SYMBOLS, ABBREVIATIONS AND NOMENCLATURE
+================================================================================
+- CMS: College Management System
+- UI: User Interface
+- UX: User Experience
+- NoSQL: Not Only SQL
+- SDK: Software Development Kit
+- API: Application Programming Interface
+- UFM: UnFair Means
+- AI: Artificial Intelligence
+
+================================================================================
+11. TABLE OF CONTENTS
+================================================================================
+1. INTRODUCTION ................................................. 1
+2. SYSTEM ANALYSIS ............................................. 5
+   2.1 Software Requirements
+   2.2 Hardware Requirements
+   2.3 Version Control (Git)
+3. SYSTEM DESIGN ............................................... 10
+4. COLLEGE CONNECT (CMS) - DETAILED MODULES .................... 15
+5. GOKUDIYUGAM APPLICATION - FEATURES .......................... 25
+6. RESULTS AND TESTING ......................................... 35
+7. CONCLUSION AND FUTURE SCOPE ................................. 40
+8. REFERENCES .................................................. 42
+
+================================================================================
+CHAPTER 1: INTRODUCTION
+================================================================================
+
+1.1 PROJECT OVERVIEW
+The rapid advancement of mobile technology has transformed how institutions and organizations manage their operations. This project encompasses the development of two specialized applications aimed at solving specific management challenges using the Flutter framework.
+
+1.2 PROBLEM STATEMENT
+- For Colleges: Manual record-keeping for attendance, exams, and canteen orders is inefficient and prone to errors.
+- For Religious Organizations: Providing easy access to spiritual content and managing administrative tasks across a large devotee base requires a centralized digital solution.
+
+1.3 OBJECTIVES
+- To create a unified platform for college stakeholders.
+- To provide a seamless spiritual experience through a feature-rich mobile app.
+- To implement real-time data synchronization using Firebase.
+
+================================================================================
+CHAPTER 2: SYSTEM ANALYSIS
+================================================================================
+
+2.1 SOFTWARE REQUIREMENTS
+- Frontend Framework: Flutter (Dart)
+- Backend: Firebase (Auth, Firestore, Storage)
+- AI Integration: Gemini 1.5 Flash
+- IDE: Android Studio / VS Code
+
+2.2 HARDWARE REQUIREMENTS
+- Minimum 8GB RAM
+- Android/iOS Test Devices
+
+2.3 VERSION CONTROL SYSTEM (GIT)
+The development process was managed using Git, a distributed version control system. This was the first step of the internship, involving the study and implementation of various Git commands to manage the codebase effectively.
+
+Key Git Commands used:
+- git init: Initialize a new local Git repository.
+- git clone [url]: Create a copy of a remote repository.
+- git status: Show the status of changes as untracked, modified, or staged.
+- git add [file]: Add file contents to the staging area.
+- git commit -m "[msg]": Commit staged snapshots to the permanent history.
+- git branch: List, create, or delete branches.
+- git checkout [branch]: Switch between different branches.
+- git merge [branch]: Combine changes from one branch into another.
+- git pull: Fetch from and integrate with another repository or a local branch.
+- git push: Update remote refs along with associated objects.
+- git log: Show the commit history.
+
+================================================================================
+CHAPTER 4: COLLEGE CONNECT (CMS) - DETAILED MODULES
+================================================================================
+
+4.1 ROLE-BASED ACCESS CONTROL
+The application implements four primary roles:
+1. Admin: Manages college setup, results, and library.
+2. Student: Accesses attendance, exam forms, results, and canteen.
+3. Teacher/Coordinator: Manages student lists, assignments, and leaves.
+4. Retailer: Handles canteen orders.
+
+4.2 ADMIN MODULE
+- College Setup Screen: Used for configuring new branches, semesters, and institutional details.
+- Result Management Screen: Centralized interface for uploading and managing student examination results.
+- Library Management Screen: Tracks book inventory, including stock levels and issue/return logs.
+- UFM (UnFair Means) Dashboard: Specifically designed to monitor academic integrity and manage suspensions for students caught in malpractice.
+- Semester Management Screen: Handles the setup and details of various academic semesters.
+
+4.3 RETAILER & CANTEEN MODULE
+- Retailer Home Screen: A comprehensive dashboard for canteen operators to monitor daily activity.
+- Order Management Screen: Allows retailers to track, manage, and fulfill food orders placed by students in real-time.
+
+4.4 STUDENT & TEACHER SCREENS
+- Login & Profile: Secure entry and personal data management.
+- Attendance Screen: Visual percentage display and detailed historical logs.
+- Examination Section: Includes Exam Form filling, Timetable viewing, Result access, and Fee Payment integration.
+- Modern UI: Utilizes Google Fonts (Poppins) and intuitive iconography for an enhanced user experience.
+
+================================================================================
+CHAPTER 5: GOKUDIYUGAM APPLICATION
+================================================================================
+
+5.1 OVERVIEW
+Developed for BAPS Badalpur Mandal, this app bridges spirituality with technology, bringing spiritual content and administrative tasks to a digital platform.
+
+5.2 CORE FEATURES
+- Home Screen:
+  - Dynamic Slider: An image slider at the top, manageable by admins via Firebase.
+  - Feature Cards: Quick access to Darshan, Kirtan, Satsang News, and Sabha Timetables.
+  - Birthday Wish: A unique feature that displays a celebratory dialog box on the user's birthday.
+  - Navigation Drawer: Provides easy access to profile, settings, and logout.
+
+- Daily Darshan Screen:
+  - High-quality daily imagery of Badalpur Mandir.
+  - Optimized image loading using the 'Coil' library for speed and quality.
+
+- Kirtan & Media Section:
+  - Categorized Kirtans: Organized by themes like Shanti, Bhakti, and Utsav.
+  - Full-featured Player: Supports Play, Pause, Next, Previous, and Seeking.
+  - Smart Lyrics Search: Features "Smart Transliteration" allowing users to search in English to find Gujarati lyrics.
+  - Playlists: Users can create and manage their own collections of favorite kirtans.
+
+- Sabha & Satsang Management:
+  - Sabha Timetable: Weekly schedule for Bal, Yuva, and Mahila sabhas.
+  - Sabha Saar Screen: Summaries of assemblies (PDF/Word) viewable directly in-app via Google Docs Viewer.
+  - Satsang News: Real-time updates and newsletters from the Mandal.
+
+5.3 ADMIN & SECURITY
+- Admin Panel (Host/Sub-host):
+  - User Management: View all users, manage roles, and permissions.
+  - Content Upload: Update home sliders, add kirtan lyrics, or upload sabha summaries.
+  - Feedback & Support: Review user feedback and handle password reset requests.
+
+- Authentication & Security:
+  - Multi-method Login: Support for Email/Password, Google Login, and Guest Mode.
+  - Biometric Security: Integration of Fingerprint and Face ID for app access.
+  - Firebase App Check: Enhanced security to prevent unauthorized data access.
+
+5.4 TECHNICAL HIGHLIGHTS
+- AI Integration: Gemini 1.5 Flash for content processing and user assistance.
+- Cloud Storage: Media stored securely in Firebase Storage and Google Drive.
+- Real-time Updates: Powered by Cloud Firestore for instant data synchronization.
+
+================================================================================
+CHAPTER 7: CONCLUSION
+================================================================================
+The development of College Connect (CMS) and Gokudiyugam demonstrates the versatility of Flutter and Firebase in creating robust, real-time applications. These projects successfully address the needs of their respective users by providing intuitive interfaces and efficient backend management.
+
+================================================================================
+8. REFERENCES / BIBLIOGRAPHY
+================================================================================
+- Flutter Documentation (https://docs.flutter.dev)
+- Firebase Documentation (https://firebase.google.com/docs)
+- Google Fonts (Poppins)
+- Gemini AI API Reference

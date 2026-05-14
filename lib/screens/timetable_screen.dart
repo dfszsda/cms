@@ -48,7 +48,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
     if (user != null) {
       try {
         final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        if (!context.mounted) return;
+        if (!mounted) return;
         if (doc.exists) {
           setState(() {
             _currentUser = UserModel.fromMap(doc.data()!, user.uid);
@@ -60,7 +60,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
           _loadTimetable();
         }
       } catch (e) {
-        if (!context.mounted) return;
+        if (!mounted) return;
         AppErrorHandler.showError(context, e);
         setState(() => _isLoading = false);
       }
@@ -694,6 +694,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                 );
 
                 if (confirm == true) {
+                  if (!mounted) return;
                   LoadingOverlay.show(context);
                   try {
                     await _auth.deleteTimetable(
@@ -727,6 +728,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
             flex: 2,
             child: ElevatedButton(
               onPressed: (_isLoading || _currentUser?.collegeId == null) ? null : () async {
+                if (!mounted) return;
                 LoadingOverlay.show(context);
                 try {
                   await _auth.setTimetable(
@@ -737,13 +739,13 @@ class _TimetableScreenState extends State<TimetableScreen> {
                     _currentUser!.collegeId!,
                     batch: null, // Always save to the Common document
                   );
-                  if (!context.mounted) return;
+                  if (!mounted) return;
                   AppErrorHandler.showSuccess(context, "Timetable Saved Successfully!");
                 } catch (e) {
-                  if (!context.mounted) return;
+                  if (!mounted) return;
                   AppErrorHandler.showError(context, e);
                 } finally {
-                  if (context.mounted) LoadingOverlay.hide(context);
+                  if (mounted) LoadingOverlay.hide(context);
                 }
               },
               style: ElevatedButton.styleFrom(

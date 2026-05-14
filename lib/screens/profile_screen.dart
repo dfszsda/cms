@@ -118,6 +118,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               enabled: false,
               readOnly: true,
             ),
+            if (widget.user.enrollmentNo != null) ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: TextEditingController(text: widget.user.enrollmentNo),
+                decoration: const InputDecoration(labelText: "Enrollment Number"),
+                enabled: false,
+                readOnly: true,
+              ),
+            ],
             const SizedBox(height: 16),
             TextField(controller: profilePicCtrl, decoration: const InputDecoration(labelText: "Profile Photo URL")),
             const SizedBox(height: 16),

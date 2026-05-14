@@ -75,23 +75,22 @@ class _StudentExamFeeScreenState extends State<StudentExamFeeScreen> {
         'timestamp': FieldValue.serverTimestamp(),
       });
       
-      if (context.mounted) {
-        AppErrorHandler.showSuccess(context, "Exam Fee Payment Successful!");
-        Navigator.pop(context);
-      }
+      if (!mounted) return;
+      AppErrorHandler.showSuccess(context, "Exam Fee Payment Successful!");
+      Navigator.pop(context);
     } catch (e) {
-      if (context.mounted) AppErrorHandler.showError(context, e);
+      if (mounted) AppErrorHandler.showError(context, e);
     } finally {
-      LoadingOverlay.hide(context);
+      if (mounted) LoadingOverlay.hide(context);
     }
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
-    if (context.mounted) AppErrorHandler.showError(context, "Payment Failed: ${response.message}");
+    if (mounted) AppErrorHandler.showError(context, "Payment Failed: ${response.message}");
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
-    if (context.mounted) AppErrorHandler.showSuccess(context, "External Wallet Selected: ${response.walletName}");
+    if (mounted) AppErrorHandler.showSuccess(context, "External Wallet Selected: ${response.walletName}");
   }
 
   void _handlePayment() {

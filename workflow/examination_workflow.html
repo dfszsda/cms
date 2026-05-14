@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examination Workflow - Swimlane</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+    <style>
+        :root {
+            --border: #334155;
+            --admin: #f1f5f9;
+            --faculty: #eff6ff;
+            --student: #fef3c7;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; padding: 40px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 1200px; background: white; padding: 50px; border: 2px solid var(--border); }
+        h1 { text-align: center; margin-bottom: 50px; font-weight: 800; }
+
+        .swimlane { display: flex; flex-direction: column; border: 2px solid var(--border); }
+        .lane { display: flex; min-height: 180px; border-bottom: 2px solid var(--border); }
+        .lane:last-child { border-bottom: none; }
+
+        .lane-header {
+            width: 70px; background: #475569; color: white; border-right: 2px solid var(--border);
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+            writing-mode: vertical-lr; transform: rotate(180deg);
+        }
+
+        .lane-content { flex-grow: 1; padding: 25px; display: flex; align-items: center; gap: 30px; position: relative; }
+
+        .node {
+            padding: 12px 18px; border: 2px solid var(--border); min-width: 130px; text-align: center;
+            font-weight: 600; font-size: 0.85rem; position: relative;
+            box-shadow: 3px 3px 0px rgba(0,0,0,0.1);
+        }
+        .oval { border-radius: 50px; }
+        .rect { border-radius: 4px; }
+
+        .a-node { background: var(--admin); }
+        .f-node { background: var(--faculty); }
+        .s-node { background: var(--student); }
+
+        .arrow-h { width: 30px; height: 2px; background: var(--border); position: relative; }
+        .arrow-h::after {
+            content: ''; position: absolute; right: -2px; top: -5px;
+            border-left: 8px solid var(--border); border-top: 6px solid transparent; border-bottom: 6px solid transparent;
+        }
+
+        .arrow-v { position: absolute; width: 2px; height: 75px; background: var(--border); left: 50%; transform: translateX(-50%); z-index: 5; }
+        .arrow-v.down { bottom: -75px; }
+        .arrow-v.down::after {
+            content: ''; position: absolute; bottom: -2px; left: -5px;
+            border-top: 8px solid var(--border); border-left: 6px solid transparent; border-right: 6px solid transparent;
+        }
+
+        .btn { margin-top: 30px; padding: 12px 25px; background: #1e293b; color: white; border: none; cursor: pointer; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container" id="capture">
+        <h1>Examination Management Workflow</h1>
+        <div class="swimlane">
+            <div class="lane">
+                <div class="lane-header">Admin</div>
+                <div class="lane-content">
+                    <div class="node oval a-node">Exam Setup</div>
+                    <div class="arrow-h"></div>
+                    <div class="node rect a-node">
+                        Hall Ticket Gen
+                        <div class="arrow-v down"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="lane">
+                <div class="lane-header">Faculty</div>
+                <div class="lane-content">
+                    <div style="width: 180px;"></div>
+                    <div style="width: 180px;"></div>
+                    <div class="node rect f-node">
+                        Conduct Exam
+                        <div class="arrow-h"></div>
+                    </div>
+                    <div class="node rect f-node">
+                        Evaluation
+                        <div class="arrow-v down" style="height: 40px; bottom: 80px; transform: rotate(180deg);"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="lane">
+                <div class="lane-header">Students</div>
+                <div class="lane-content">
+                    <div style="width: 180px;"></div>
+                    <div class="node oval s-node">Download Hall Ticket</div>
+                    <div style="width: 180px;"></div>
+                    <div style="width: 180px;"></div>
+                    <div class="node oval s-node">View Results</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <button class="btn" onclick="downloadImage()">Download Flowchart</button>
+    <script>
+        function downloadImage() {
+            html2canvas(document.getElementById('capture'), { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'Examination_Swimlane_Flow.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.9);
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>

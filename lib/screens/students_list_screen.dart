@@ -1,7 +1,10 @@
-// ignore_for_file: unnecessary_underscores
+// ignore_for_file: unused_local_variable, unnecessary_underscores
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/error_handler.dart';
@@ -44,6 +47,14 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
         elevation: 0,
         backgroundColor: theme.colorScheme.primary,
         foregroundColor: Colors.white,
+        actions: [
+          if (widget.viewer.role == 'admin' || widget.viewer.role == 'coordinator')
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf_rounded),
+              onPressed: () => _generateAndDownloadPdf(theme),
+              tooltip: "Download PDF Report",
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -61,7 +72,7 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
     // Students can only see the Semester filter (primarily their own)
     final List<String> filterOptions = widget.viewer.role == 'student' 
         ? ["Semester"] 
-        : ["Batch", "Semester", "Coordinator"];
+        : ["Batch", "Semester", "Coordinator", "All Students"];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -88,7 +99,7 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
                       onSelected: (val) {
                         setState(() {
                           _filterType = type;
-                          _selectedFilterValue = null;
+                          _selectedFilterValue = (type == "All Students") ? true : null;
                         });
                       },
                       selectedColor: Colors.white,
@@ -177,6 +188,20 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
         items: List.generate(8, (index) => index + 1),
         itemLabel: (sem) => "Semester $sem",
         onChanged: (val) => setState(() => _selectedFilterValue = val),
+      );
+    } else if (_filterType == "All Students") {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text(
+          "Showing all students in the college",
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
       );
     } else {
       // Coordinator
@@ -360,6 +385,8 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
       stream = _auth.getStudentsBySemester(_selectedFilterValue);
     } else if (_filterType == "Coordinator" && _selectedFilterValue is UserModel) {
       stream = _auth.getStudentsByCoordinator(_selectedFilterValue.uid);
+    } else if (_filterType == "All Students") {
+      stream = _auth.getAllUsers(collegeId: widget.viewer.collegeId).map((users) => users.where((u) => u.role == 'student').toList());
     } else {
       return const SizedBox();
     }
@@ -414,6 +441,25 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
             return _StudentCard(
               student: student,
               theme: theme,
+              viewerRole: widget.viewer.role,
+              onGenerateEnrollment: () async {
+                if (student.branch != null && student.collegeId != null) {
+                  LoadingOverlay.show(context);
+                  try {
+                    String? eno = await _auth.generateEnrollmentNumber(student.collegeId!, student.branch!);
+                    if (eno != null) {
+                      await FirebaseFirestore.instance.collection('users').doc(student.uid).update({'enrollmentNo': eno});
+                      if (context.mounted) AppErrorHandler.showSuccess(context, "Enrollment Number Generated: $eno");
+                    }
+                  } catch (e) {
+                    if (context.mounted) AppErrorHandler.showError(context, e);
+                  } finally {
+                    if (context.mounted) LoadingOverlay.hide(context);
+                  }
+                } else {
+                  AppErrorHandler.showError(context, "Branch or College ID missing for this student");
+                }
+              },
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -430,17 +476,106 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
       },
     );
   }
+
+  Future<void> _generateAndDownloadPdf(ThemeData theme) async {
+    if (_selectedFilterValue == null) {
+      AppErrorHandler.showError(context, "Please select a filter first");
+      return;
+    }
+
+    try {
+      // Get current list of students based on stream logic
+      Stream<List<UserModel>> stream;
+      if (_filterType == "Batch" && _selectedFilterValue is DocumentSnapshot) {
+        stream = _auth.getStudentsByBatch(_selectedFilterValue['fullName']);
+      } else if (_filterType == "Semester" && _selectedFilterValue is int) {
+        stream = _auth.getStudentsBySemester(_selectedFilterValue);
+      } else if (_filterType == "Coordinator" && _selectedFilterValue is UserModel) {
+        stream = _auth.getStudentsByCoordinator(_selectedFilterValue.uid);
+      } else if (_filterType == "All Students") {
+        stream = _auth.getAllUsers(collegeId: widget.viewer.collegeId).map((users) => users.where((u) => u.role == 'student').toList());
+      } else {
+        return;
+      }
+
+      final students = await stream.first;
+      final filteredStudents = students.where((s) {
+        final query = _studentSearchQuery.toLowerCase();
+        return s.fullName.toLowerCase().contains(query) || s.email.toLowerCase().contains(query);
+      }).toList();
+
+      if (filteredStudents.isEmpty) {
+        if (mounted) AppErrorHandler.showError(context, "No students to export");
+        return;
+      }
+
+      final pdf = pw.Document();
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return [
+              pw.Header(
+                level: 0,
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text("Student Enrollment Report", style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                    pw.Text(DateTime.now().toString().split(' ')[0]),
+                  ],
+                ),
+              ),
+              pw.Paragraph(
+                text: "Filter: $_filterType - ${_selectedFilterValue is DocumentSnapshot ? _selectedFilterValue['fullName'] : (_filterType == "All Students" ? "Entire College" : _selectedFilterValue)}",
+              ),
+              pw.SizedBox(height: 20),
+              pw.TableHelper.fromTextArray(
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                headers: ['Sr. No.', 'Enrollment No.', 'Full Name', 'Branch', 'Sem', 'Batch'],
+                data: List<List<dynamic>>.generate(
+                  filteredStudents.length,
+                  (index) => [
+                    index + 1,
+                    filteredStudents[index].enrollmentNo ?? 'N/A',
+                    filteredStudents[index].fullName,
+                    filteredStudents[index].branchName,
+                    filteredStudents[index].semester ?? '',
+                    filteredStudents[index].batch ?? '',
+                  ],
+                ),
+              ),
+            ];
+          },
+        ),
+      );
+
+      await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => pdf.save());
+    } catch (e) {
+      if (mounted) AppErrorHandler.showError(context, e);
+    }
+  }
 }
 
 class _StudentCard extends StatelessWidget {
   final UserModel student;
   final ThemeData theme;
   final VoidCallback onTap;
+  final String viewerRole;
+  final VoidCallback onGenerateEnrollment;
 
-  const _StudentCard({required this.student, required this.theme, required this.onTap});
+  const _StudentCard({
+    required this.student, 
+    required this.theme, 
+    required this.onTap, 
+    required this.viewerRole,
+    required this.onGenerateEnrollment,
+  });
 
   @override
   Widget build(BuildContext context) {
+    bool isAdmin = viewerRole == 'admin' || viewerRole == 'system_admin';
+    bool missingEnrollment = student.enrollmentNo == null || student.enrollmentNo!.isEmpty;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -489,6 +624,31 @@ class _StudentCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (student.enrollmentNo != null)
+                        Text(
+                          "ID: ${student.enrollmentNo}",
+                          style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 13),
+                        )
+                      else if (isAdmin)
+                        GestureDetector(
+                          onTap: onGenerateEnrollment,
+                          child: Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.auto_fix_high_rounded, size: 12, color: Colors.red),
+                                SizedBox(width: 4),
+                                Text("Generate ID", style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 4),
                       Row(
                         children: [

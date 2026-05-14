@@ -18,6 +18,8 @@ import '../college_info_screen.dart';
 import '../semester_management_screen.dart';
 import '../order_history_screen.dart';
 
+import 'tabs/admin_enrollment_settings_tab.dart';
+
 class AdminDashboardScreen extends StatelessWidget {
   final String collegeId;
   final String collegeName;
@@ -38,24 +40,28 @@ class AdminDashboardScreen extends StatelessWidget {
     Widget content = CustomScrollView(
       slivers: [
         SliverAppBar(
-          expandedHeight: isDesktop ? 80.0 : 180.0,
+          expandedHeight: isDesktop ? 80.0 : 150.0,
           floating: false,
           pinned: true,
           elevation: 0,
           backgroundColor: theme.colorScheme.primary,
           flexibleSpace: FlexibleSpaceBar(
             centerTitle: true,
-            titlePadding: const EdgeInsets.only(left: 60, right: 60, bottom: 20),
+            titlePadding: EdgeInsets.only(
+              left: isDesktop ? 60 : 16, 
+              right: isDesktop ? 60 : 16, 
+              bottom: 16
+            ),
             title: Text(
               isDesktop ? "Control Center" : collegeName,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
-                fontSize: 22,
+                fontSize: 18,
                 height: 1.2,
               ),
-              maxLines: 3,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             background: Container(
@@ -65,6 +71,15 @@ class AdminDashboardScreen extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
                 ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -20,
+                    top: -20,
+                    child: Icon(Icons.admin_panel_settings, size: 100, color: Colors.white.withOpacity(0.1)),
+                  ),
+                ],
               ),
             ),
           ),
@@ -131,12 +146,12 @@ class AdminDashboardScreen extends StatelessWidget {
           ),
         ),
         SliverPadding(
-          padding: EdgeInsets.symmetric(horizontal: isDesktop ? (size.width - 1200).clamp(20, double.infinity) / 2 + 20 : 20),
+          padding: EdgeInsets.symmetric(horizontal: isDesktop ? (size.width - 1200).clamp(20, double.infinity) / 2 + 20 : 16),
           sliver: SliverGrid(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: isDesktop ? 4 : 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
               childAspectRatio: isDesktop ? 1.1 : 1.0,
             ),
             delegate: SliverChildListDelegate([
@@ -224,6 +239,13 @@ class AdminDashboardScreen extends StatelessWidget {
                 color: Colors.amber,
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminRequestsTab(collegeId: collegeId))),
               ),
+              _ModernAdminCard(
+                title: "Enrollment",
+                subtitle: "ID Settings",
+                icon: Icons.app_registration_rounded,
+                color: Colors.deepOrange,
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminEnrollmentSettingsTab(collegeId: collegeId))),
+              ),
             ]),
           ),
         ),
@@ -267,18 +289,24 @@ class AdminDashboardScreen extends StatelessWidget {
       builder: (context, snapshot) {
         String count = snapshot.hasData ? snapshot.data!.docs.length.toString() : "...";
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: mainColor.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: mainColor.withOpacity(0.1)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: mainColor),
-              const SizedBox(width: 8),
-              Text("$label: $count", style: TextStyle(color: mainColor, fontWeight: FontWeight.w600, fontSize: 14)),
+              Icon(icon, size: 16, color: mainColor),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  "$label: $count", 
+                  style: TextStyle(color: mainColor, fontWeight: FontWeight.w600, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
         );
@@ -353,6 +381,7 @@ class _ModernAdminCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -368,23 +397,27 @@ class _ModernAdminCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 30),
+              child: Icon(icon, color: color, size: 28),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
               title,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, height: 1.2),
               textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
               subtitle,
-              style: TextStyle(color: Colors.grey[500], fontSize: 11),
+              style: TextStyle(color: Colors.grey[500], fontSize: 10),
               textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
